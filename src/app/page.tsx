@@ -175,7 +175,7 @@ export default function WardleyCanvasPage() {
   };
 
   return (
-    <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
+    <DndContext id="wardley-map-dnd" onDragEnd={handleDragEnd} sensors={sensors}>
       <div className="flex h-screen w-screen flex-col bg-background font-body">
         <Header
           onNewMap={handleNewMap}
