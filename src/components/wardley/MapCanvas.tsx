@@ -70,24 +70,31 @@ export default function MapCanvas({
     }
   };
 
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Deselect if clicking the background of the canvas or the axis labels container
+    const target = e.target as HTMLElement;
+    if (
+      target.id === 'map-canvas-container' ||
+      target.id === 'y-axis-container' ||
+      target.parentElement?.id === 'y-axis-container'
+    ) {
+      setSelectedNodeId(null);
+    }
+  };
+
   return (
     <div
-      className="h-full w-full p-4 md:p-8 flex flex-col relative"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          setSelectedNodeId(null);
-        }
-      }}
+      id="map-canvas-container"
+      className="h-full w-full p-4 md:p-8 flex flex-row items-stretch"
+      onClick={handleCanvasClick}
     >
       {/* Value Chain Axis Labels */}
-      <div className="absolute top-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
-        Visible
-      </div>
-      <div className="absolute top-1/2 left-2 -translate-y-1/2 -rotate-90 text-base font-semibold text-foreground tracking-wider">
-        Value Chain
-      </div>
-      <div className="absolute bottom-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
-        Invisible
+      <div id="y-axis-container" className="flex flex-col justify-between items-center w-8 mr-4 text-sm font-medium text-muted-foreground">
+        <div>Visible</div>
+        <div className="-rotate-90 whitespace-nowrap text-base font-semibold text-foreground tracking-wider">
+          Value Chain
+        </div>
+        <div>Invisible</div>
       </div>
 
       {/* Main Canvas Area */}
