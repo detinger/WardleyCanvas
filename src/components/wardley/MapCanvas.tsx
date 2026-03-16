@@ -98,9 +98,9 @@ export default function MapCanvas({
       </div>
 
       {/* Main Canvas Area */}
-      <div className="flex-1 w-full flex flex-col border border-dashed rounded-lg">
+      <div className="flex-1 w-full flex flex-col">
         {/* Drop area */}
-        <div ref={combinedRef} className="flex-1 relative w-full h-full">
+        <div ref={combinedRef} className="flex-1 relative w-full h-full border border-dashed rounded-lg">
           {/* Vertical Evolution Lines */}
           <div className="absolute top-0 bottom-0 left-1/4 border-l border-dashed border-border"></div>
           <div className="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-border"></div>
@@ -141,7 +141,7 @@ export default function MapCanvas({
           ))}
         </div>
         {/* Evolution Axis Footer */}
-        <div className="flex border-t border-dashed">
+        <div className="flex">
           {EvolutionStages.map((stage) => (
             <div
               key={stage}
