@@ -66,5 +66,5 @@
 }
 
 [data-nextjs-indicator] {
-  display: none;
+  display: none !important;
 }
