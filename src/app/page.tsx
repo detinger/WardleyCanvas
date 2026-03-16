@@ -1,7 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { DndContext, DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import { WardleyMap, MapNode } from '@/lib/types';
 import Header from '@/components/wardley/Header';
 import MapCanvas from '@/components/wardley/MapCanvas';
@@ -30,24 +36,26 @@ export default function WardleyCanvasPage() {
   const { saveMap, loadMap, getSavedMaps, deleteMap } = useWardleyMaps();
   const { toast } = useToast();
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
       const { active, over, delta } = event;
 
       // Handle dropping a new node from the toolbox
       if (active.data.current?.type === 'new-node') {
-        if (over && over.id === 'map-canvas-drop-area' && canvasRef.current) {
+        if (over?.id === 'map-canvas-drop-area' && canvasRef.current && active.rect.current.initial) {
           const canvasRect = canvasRef.current.getBoundingClientRect();
-          if (!active.rect.current.translated) return;
+          const initialRect = active.rect.current.initial;
 
-          const dropX =
-            active.rect.current.translated.left -
-            canvasRect.left +
-            active.rect.current.width / 2;
-          const dropY =
-            active.rect.current.translated.top -
-            canvasRect.top +
-            active.rect.current.height / 2;
+          const dropX = (initialRect.left + delta.x) - canvasRect.left + (initialRect.width / 2);
+          const dropY = (initialRect.top + delta.y) - canvasRect.top + (initialRect.height / 2);
 
           const xPercent = Math.max(
             0,
@@ -167,7 +175,7 @@ export default function WardleyCanvasPage() {
   };
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
       <div className="flex h-screen w-screen flex-col bg-background font-body">
         <Header
           onNewMap={handleNewMap}

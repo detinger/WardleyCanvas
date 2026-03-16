@@ -41,9 +41,8 @@ export default function MapNodeComponent({
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isEditing) {
-      setIsEditing(true);
-    }
+    if (isDragging || isEditing) return;
+    setIsEditing(true);
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,7 +53,7 @@ export default function MapNodeComponent({
     setIsEditing(false);
     if (name.trim() === '') {
       setName(node.name); // revert if empty
-    } else {
+    } else if (name !== node.name) {
       onNameChange(name);
     }
   };
@@ -62,8 +61,7 @@ export default function MapNodeComponent({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleBlur();
-    }
-    if (e.key === 'Escape') {
+    } else if (e.key === 'Escape') {
       setName(node.name);
       setIsEditing(false);
     }
@@ -85,14 +83,15 @@ export default function MapNodeComponent({
       {...listeners}
       {...attributes}
       className={cn(
-        'absolute flex items-center justify-center w-4 h-4 group cursor-grab',
-        isDragging && 'opacity-50 cursor-grabbing'
+        'absolute flex items-center justify-center w-4 h-4 group',
+        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
       )}
       onClick={(e) => {
-        if (isEditing) return;
+        if (isEditing || isDragging) return;
         e.stopPropagation();
         onClick();
       }}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         className={cn(
@@ -117,7 +116,10 @@ export default function MapNodeComponent({
       ) : (
         <div
           className="absolute top-full mt-1 px-2 py-0.5 rounded-md text-center text-sm font-medium text-card-foreground bg-background/70 backdrop-blur-sm shadow-sm whitespace-nowrap"
-          onDoubleClick={handleDoubleClick}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            handleDoubleClick(e);
+          }}
         >
           {node.name}
         </div>
