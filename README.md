@@ -51,18 +51,13 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 ### Running the Application
 
-1.  **Start the development server:**
+**Start the development server:**
     This command starts the Next.js development server.
     ```bash
     npm run dev
     ```
     The application will typically be available at `http://localhost:9002`.
 
-2.  **Genkit AI Development (Optional):**
-    If you are working on AI features, you can run the Genkit development server in a separate terminal. This provides a UI for testing and monitoring your Genkit flows.
-    ```bash
-    npm run genkit:dev
-    ```
 
 ## How to Use
 
