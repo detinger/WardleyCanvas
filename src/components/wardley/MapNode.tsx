@@ -39,7 +39,8 @@ export default function MapNodeComponent({
     }
   }, [isEditing]);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isEditing) {
       setIsEditing(true);
     }
@@ -84,17 +85,24 @@ export default function MapNodeComponent({
       {...listeners}
       {...attributes}
       className={cn(
-        'absolute cursor-grab p-2 rounded-md shadow-lg bg-card border-2 transition-colors duration-200 ease-in-out',
-        'w-32 h-12 flex items-center justify-center text-center',
-        isSelected ? 'border-primary shadow-primary/30' : 'border-border',
+        'absolute flex flex-col items-center group cursor-grab',
         isDragging && 'opacity-50 cursor-grabbing'
       )}
       onClick={(e) => {
+        if (isEditing) return;
         e.stopPropagation();
         onClick();
       }}
-      onDoubleClick={handleDoubleClick}
     >
+      <div
+        className={cn(
+          'w-4 h-4 rounded-full shadow-md',
+          isSelected
+            ? 'bg-primary ring-2 ring-offset-2 ring-primary ring-offset-background'
+            : 'bg-muted-foreground'
+        )}
+      />
+
       {isEditing ? (
         <Input
           ref={inputRef}
@@ -102,13 +110,17 @@ export default function MapNodeComponent({
           onChange={handleNameChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-full h-8 text-center text-sm"
+          className="w-32 h-7 mt-2 text-center text-sm cursor-text"
           onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className="text-sm font-medium text-card-foreground truncate p-1">
+        <div
+          className="mt-2 px-2 py-0.5 rounded-md text-center text-sm font-medium text-card-foreground bg-background/70 backdrop-blur-sm shadow-sm whitespace-nowrap"
+          onDoubleClick={handleDoubleClick}
+        >
           {node.name}
-        </span>
+        </div>
       )}
     </div>
   );
