@@ -12,6 +12,7 @@ import LoadMapDialog from '@/components/wardley/LoadMapDialog';
 import { useWardleyMaps } from '@/hooks/use-wardley-maps';
 import { templates } from '@/lib/templates';
 import { useToast } from '@/hooks/use-toast';
+import EditorSidebar from '@/components/wardley/EditorSidebar';
 
 const initialMap: WardleyMap = templates[0];
 
@@ -31,9 +32,60 @@ export default function WardleyCanvasPage() {
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
-      const { active, delta } = event;
-      const nodeId = active.id as string;
+      const { active, delta, over } = event;
 
+      // Handle dropping a new node from the toolbox
+      if (active.data.current?.type === 'new-node') {
+        if (over && over.id === 'map-canvas-drop-area' && canvasRef.current) {
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+          if (!active.rect.current.translated) return;
+
+          const dropX =
+            active.rect.current.translated.left -
+            canvasRect.left +
+            active.rect.current.width / 2;
+          const dropY =
+            active.rect.current.translated.top -
+            canvasRect.top +
+            active.rect.current.height / 2;
+
+          const xPercent = Math.max(
+            0,
+            Math.min(100, (dropX / canvasRect.width) * 100)
+          );
+          const yPercent = Math.max(
+            0,
+            Math.min(100, (dropY / canvasRect.height) * 100)
+          );
+
+          let stage: MapNode['stage'] = 'genesis';
+          if (xPercent > 75) stage = 'commodity';
+          else if (xPercent > 50) stage = 'product';
+          else if (xPercent > 25) stage = 'custom';
+
+          const newNodeName = `Component ${map.nodes.length + 1}`;
+          const newNode: MapNode = {
+            id: `node_${Date.now()}`,
+            name: newNodeName,
+            x: xPercent,
+            y: yPercent,
+            stage: stage,
+          };
+
+          setMap((prevMap) => ({
+            ...prevMap,
+            nodes: [...prevMap.nodes, newNode],
+          }));
+          toast({
+            title: 'Component Added',
+            description: `"${newNodeName}" was added. Double-click to rename.`,
+          });
+        }
+        return;
+      }
+
+      // Handle dragging an existing node
+      const nodeId = active.id as string;
       setMap((prevMap) => {
         const node = prevMap.nodes.find((n) => n.id === nodeId);
         if (!node || !canvasRef.current) return prevMap;
@@ -46,23 +98,30 @@ export default function WardleyCanvasPage() {
         const newXPixels = currentXPixels + delta.x;
         const newYPixels = currentYPixels + delta.y;
 
-        const newXPercent = (newXPixels / canvasRect.width) * 100;
-        const newYPercent = (newYPixels / canvasRect.height) * 100;
+        const newXPercent = Math.max(
+          0,
+          Math.min(100, (newXPixels / canvasRect.width) * 100)
+        );
+        const newYPercent = Math.max(
+          0,
+          Math.min(100, (newYPixels / canvasRect.height) * 100)
+        );
 
-        const newNodes = prevMap.nodes.map((n) => {
-          if (n.id === nodeId) {
-            let stage: MapNode['stage'] = 'genesis';
-            if (newXPercent > 75) stage = 'commodity';
-            else if (newXPercent > 50) stage = 'product';
-            else if (newXPercent > 25) stage = 'custom';
-            return { ...n, x: newXPercent, y: newYPercent, stage };
-          }
-          return n;
-        });
-        return { ...prevMap, nodes: newNodes };
+        let stage: MapNode['stage'] = 'genesis';
+        if (newXPercent > 75) stage = 'commodity';
+        else if (newXPercent > 50) stage = 'product';
+        else if (newXPercent > 25) stage = 'custom';
+        return {
+          ...prevMap,
+          nodes: prevMap.nodes.map((n) =>
+            n.id === nodeId
+              ? { ...n, x: newXPercent, y: newYPercent, stage }
+              : n
+          ),
+        };
       });
     },
-    []
+    [map.nodes, toast]
   );
 
   const handleSelectTemplate = (template: WardleyMap) => {
@@ -73,7 +132,7 @@ export default function WardleyCanvasPage() {
       description: `The "${template.name}" map is now ready to use.`,
     });
   };
-  
+
   const handleSaveMap = (name: string) => {
     saveMap({ ...map, name });
     setSaveOpen(false);
@@ -82,15 +141,15 @@ export default function WardleyCanvasPage() {
       description: `Your map "${name}" has been saved successfully.`,
     });
   };
-  
+
   const handleLoadMap = (mapData: WardleyMap) => {
     setMap(mapData);
     setLoadOpen(false);
-     toast({
+    toast({
       title: 'Map Loaded',
       description: `Your map "${mapData.name}" has been loaded.`,
     });
-  }
+  };
 
   const handleNewMap = () => {
     setMap({
@@ -104,6 +163,15 @@ export default function WardleyCanvasPage() {
     });
   };
 
+  const handleNodeNameChange = (nodeId: string, newName: string) => {
+    setMap((prevMap) => ({
+      ...prevMap,
+      nodes: prevMap.nodes.map((n) =>
+        n.id === nodeId ? { ...n, name: newName } : n
+      ),
+    }));
+  };
+
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-screen flex-col bg-background font-body">
@@ -114,15 +182,20 @@ export default function WardleyCanvasPage() {
           onShowGuide={() => setGuideOpen(true)}
           onShowTemplates={() => setTemplatesOpen(true)}
         />
-        <main className="flex-1 overflow-hidden">
-          <MapCanvas
-            map={map}
-            selectedNodeId={selectedNodeId}
-            setSelectedNodeId={setSelectedNodeId}
-            canvasRef={canvasRef}
-          />
-        </main>
-        
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-hidden">
+            <MapCanvas
+              map={map}
+              selectedNodeId={selectedNodeId}
+              setSelectedNodeId={setSelectedNodeId}
+              canvasRef={canvasRef}
+              setMap={setMap}
+              onNodeNameChange={handleNodeNameChange}
+            />
+          </main>
+          <EditorSidebar />
+        </div>
+
         <ConceptsGuide open={isGuideOpen} onOpenChange={setGuideOpen} />
         <TemplatesGallery
           open={isTemplatesOpen}
