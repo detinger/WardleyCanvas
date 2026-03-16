@@ -108,22 +108,6 @@ export default function MapCanvas({
             height="100%"
             className="absolute pointer-events-none"
           >
-            <defs>
-              <marker
-                id="arrow"
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path
-                  d="M 0 0 L 10 5 L 0 10 z"
-                  fill="hsl(var(--muted-foreground))"
-                />
-              </marker>
-            </defs>
             {map.links.map((link, index) => {
               const fromPos = getNodePosition(link.from);
               const toPos = getNodePosition(link.to);
@@ -136,7 +120,6 @@ export default function MapCanvas({
                   y2={toPos.y}
                   stroke="hsl(var(--muted-foreground))"
                   strokeWidth="2"
-                  markerEnd="url(#arrow)"
                 />
               );
             })}
