@@ -73,7 +73,7 @@ export default function MapCanvas({
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Deselect if clicking the background of the canvas
     const target = e.target as HTMLElement;
-    if (target.id === 'map-canvas-container' || target.id === 'map-canvas-drop-area') {
+    if (target.id === 'map-canvas-container' || target.id === 'map-canvas-drop-area' || target.classList.contains('map-background')) {
       setSelectedNodeId(null);
     }
   };
@@ -84,7 +84,6 @@ export default function MapCanvas({
       className="h-full w-full p-4 md:p-8 flex flex-col"
       onClick={handleCanvasClick}
     >
-        {/* Main Canvas Area */}
         <div className="flex-1 flex flex-row items-stretch">
             {/* Y-Axis Labels */}
             <div className="flex flex-col justify-between items-center w-12 text-sm font-medium text-muted-foreground mr-2">
@@ -98,11 +97,15 @@ export default function MapCanvas({
             </div>
 
             {/* Drop area */}
-            <div ref={combinedRef} className="flex-1 relative w-full h-full border-t border-b border-dashed rounded-lg">
+            <div ref={combinedRef} id="map-canvas-drop-area" className="flex-1 relative w-full h-full map-background">
                 {/* Vertical Evolution Lines */}
                 <div className="absolute top-0 bottom-0 left-1/4 w-0 border-l border-dashed border-border"></div>
                 <div className="absolute top-0 bottom-0 left-1/2 w-0 border-l border-dashed border-border"></div>
                 <div className="absolute top-0 bottom-0 left-3/4 w-0 border-l border-dashed border-border"></div>
+
+                {/* Solid Axis Lines */}
+                <div className="absolute top-0 bottom-0 left-0 w-0 border-l border-foreground"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-0 border-b border-foreground"></div>
 
                 {/* Links */}
                 <svg
