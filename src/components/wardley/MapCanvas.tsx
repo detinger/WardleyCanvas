@@ -83,7 +83,7 @@ export default function MapCanvas({
       <div className="absolute top-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
         Visible
       </div>
-      <div className="absolute top-1/2 left-0 -translate-y-1/2 -rotate-90 text-base font-semibold text-foreground tracking-wider">
+      <div className="absolute top-1/2 left-2 -translate-y-1/2 -rotate-90 text-base font-semibold text-foreground tracking-wider">
         Value Chain
       </div>
       <div className="absolute bottom-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
