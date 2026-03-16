@@ -71,13 +71,9 @@ export default function MapCanvas({
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Deselect if clicking the background of the canvas or the axis labels container
+    // Deselect if clicking the background of the canvas
     const target = e.target as HTMLElement;
-    if (
-      target.id === 'map-canvas-container' ||
-      target.id === 'y-axis-container' ||
-      target.parentElement?.id === 'y-axis-container'
-    ) {
+    if (target.id === 'map-canvas-container' || target.id === 'map-canvas-drop-area') {
       setSelectedNodeId(null);
     }
   };
@@ -85,73 +81,76 @@ export default function MapCanvas({
   return (
     <div
       id="map-canvas-container"
-      className="h-full w-full p-4 md:p-8 flex flex-row items-stretch"
+      className="h-full w-full p-4 md:p-8 flex flex-col"
       onClick={handleCanvasClick}
     >
-      {/* Value Chain Axis Labels */}
-      <div id="y-axis-container" className="flex flex-col justify-between items-center w-8 mr-4 text-sm font-medium text-muted-foreground">
-        <div>Visible</div>
-        <div className="-rotate-90 whitespace-nowrap text-base font-semibold text-foreground tracking-wider">
-          Value Chain
-        </div>
-        <div>Invisible</div>
-      </div>
-
-      {/* Main Canvas Area */}
-      <div className="flex-1 w-full flex flex-col">
-        {/* Drop area */}
-        <div ref={combinedRef} className="flex-1 relative w-full h-full border border-dashed rounded-lg">
-          {/* Vertical Evolution Lines */}
-          <div className="absolute top-0 bottom-0 left-1/4 border-l border-dashed border-border"></div>
-          <div className="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-border"></div>
-          <div className="absolute top-0 bottom-0 left-3/4 border-l border-dashed border-border"></div>
-
-          {/* Links */}
-          <svg
-            width="100%"
-            height="100%"
-            className="absolute pointer-events-none"
-          >
-            {map.links.map((link, index) => {
-              const fromPos = getNodePosition(link.from);
-              const toPos = getNodePosition(link.to);
-              return (
-                <line
-                  key={index}
-                  x1={fromPos.x}
-                  y1={fromPos.y}
-                  x2={toPos.x}
-                  y2={toPos.y}
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeWidth="2"
-                />
-              );
-            })}
-          </svg>
-
-          {/* Nodes */}
-          {map.nodes.map((node) => (
-            <MapNodeComponent
-              key={node.id}
-              node={node}
-              isSelected={node.id === selectedNodeId}
-              onClick={() => handleNodeClick(node.id)}
-              onNameChange={(newName) => onNodeNameChange(node.id, newName)}
-            />
-          ))}
-        </div>
-        {/* Evolution Axis Footer */}
-        <div className="flex">
-          {EvolutionStages.map((stage) => (
-            <div
-              key={stage}
-              className="w-1/4 py-2 text-center text-sm font-semibold text-muted-foreground"
-            >
-              {stage}
+        {/* Main Canvas Area */}
+        <div className="flex-1 flex flex-row items-stretch">
+            {/* Y-Axis Labels */}
+            <div className="flex flex-col justify-between items-center w-12 text-sm font-medium text-muted-foreground mr-2">
+                <div className="-rotate-90 whitespace-nowrap">Visible</div>
+                <div className="flex items-center justify-center flex-1">
+                <span className="-rotate-90 whitespace-nowrap text-base font-semibold text-foreground tracking-wider">
+                    Value Chain
+                </span>
+                </div>
+                <div className="-rotate-90 whitespace-nowrap">Invisible</div>
             </div>
-          ))}
+
+            {/* Drop area */}
+            <div ref={combinedRef} className="flex-1 relative w-full h-full border-t border-b border-dashed rounded-lg">
+                {/* Vertical Evolution Lines */}
+                <div className="absolute top-0 bottom-0 left-1/4 w-0 border-l border-dashed border-border"></div>
+                <div className="absolute top-0 bottom-0 left-1/2 w-0 border-l border-dashed border-border"></div>
+                <div className="absolute top-0 bottom-0 left-3/4 w-0 border-l border-dashed border-border"></div>
+
+                {/* Links */}
+                <svg
+                    width="100%"
+                    height="100%"
+                    className="absolute pointer-events-none"
+                >
+                    {map.links.map((link, index) => {
+                    const fromPos = getNodePosition(link.from);
+                    const toPos = getNodePosition(link.to);
+                    return (
+                        <line
+                        key={index}
+                        x1={fromPos.x}
+                        y1={fromPos.y}
+                        x2={toPos.x}
+                        y2={toPos.y}
+                        stroke="hsl(var(--muted-foreground))"
+                        strokeWidth="2"
+                        />
+                    );
+                    })}
+                </svg>
+
+                {/* Nodes */}
+                {map.nodes.map((node) => (
+                    <MapNodeComponent
+                    key={node.id}
+                    node={node}
+                    isSelected={node.id === selectedNodeId}
+                    onClick={() => handleNodeClick(node.id)}
+                    onNameChange={(newName) => onNodeNameChange(node.id, newName)}
+                    />
+                ))}
+            </div>
         </div>
-      </div>
+
+        {/* Evolution Axis Footer */}
+        <div className="flex pt-2 pl-14">
+            {EvolutionStages.map((stage) => (
+            <div
+                key={stage}
+                className="w-1/4 text-center text-sm font-semibold text-muted-foreground"
+            >
+                {stage}
+            </div>
+            ))}
+        </div>
     </div>
   );
 }
