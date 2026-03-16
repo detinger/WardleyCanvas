@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useDrop } from 'react-dnd';
 import { WardleyMap } from '@/lib/types';
 import MapNodeComponent from './MapNode';
 
@@ -9,7 +8,7 @@ type MapCanvasProps = {
   map: WardleyMap;
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
-  onNodeMove: (id: string, x: number, y: number) => void;
+  canvasRef: React.RefObject<HTMLDivElement>;
 };
 
 const EvolutionStages = ['Genesis', 'Custom-Built', 'Product', 'Commodity'];
@@ -18,36 +17,8 @@ export default function MapCanvas({
   map,
   selectedNodeId,
   setSelectedNodeId,
-  onNodeMove,
+  canvasRef,
 }: MapCanvasProps) {
-  const canvasRef = React.useRef<HTMLDivElement>(null);
-
-  const [, drop] = useDrop(
-    () => ({
-      accept: 'node',
-      drop(item: { id: string }, monitor) {
-        if (!canvasRef.current) return;
-        const delta = monitor.getDifferenceFromInitialOffset();
-        const initialOffset = monitor.getInitialSourceClientOffset();
-        if (!delta || !initialOffset) return;
-
-        const node = map.nodes.find((n) => n.id === item.id);
-        if (!node) return;
-
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        
-        const newX = initialOffset.x + delta.x - canvasRect.left;
-        const newY = initialOffset.y + delta.y - canvasRect.top;
-
-        const xPercent = (newX / canvasRect.width) * 100;
-        const yPercent = (newY / canvasRect.height) * 100;
-        
-        onNodeMove(item.id, xPercent, yPercent);
-      },
-    }),
-    [map.nodes, onNodeMove]
-  );
-  
   const getNodePosition = (nodeId: string) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
     const node = map.nodes.find(n => n.id === nodeId);
@@ -90,50 +61,48 @@ export default function MapCanvas({
           ))}
         </div>
         {/* Drop area */}
-        <div ref={drop} className="flex-1 relative w-full h-full">
-            <div ref={canvasRef} className="absolute inset-0">
-                {/* Links */}
-                <svg width="100%" height="100%" className="absolute pointer-events-none">
-                    {map.links.map((link, index) => {
-                        const fromPos = getNodePosition(link.from);
-                        const toPos = getNodePosition(link.to);
-                        return (
-                            <line
-                                key={index}
-                                x1={fromPos.x + 60}
-                                y1={fromPos.y + 20}
-                                x2={toPos.x + 60}
-                                y2={toPos.y + 20}
-                                stroke="hsl(var(--muted-foreground))"
-                                strokeWidth="2"
-                                markerEnd="url(#arrow)"
-                            />
-                        )
-                    })}
-                    <defs>
-                        <marker
-                            id="arrow"
-                            viewBox="0 0 10 10"
-                            refX="8"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse">
-                            <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--muted-foreground))" />
-                        </marker>
-                    </defs>
-                </svg>
+        <div ref={canvasRef} className="flex-1 relative w-full h-full">
+            {/* Links */}
+            <svg width="100%" height="100%" className="absolute pointer-events-none">
+                {map.links.map((link, index) => {
+                    const fromPos = getNodePosition(link.from);
+                    const toPos = getNodePosition(link.to);
+                    return (
+                        <line
+                            key={index}
+                            x1={fromPos.x}
+                            y1={fromPos.y}
+                            x2={toPos.x}
+                            y2={toPos.y}
+                            stroke="hsl(var(--muted-foreground))"
+                            strokeWidth="2"
+                            markerEnd="url(#arrow)"
+                        />
+                    )
+                })}
+                <defs>
+                    <marker
+                        id="arrow"
+                        viewBox="0 0 10 10"
+                        refX="8"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--muted-foreground))" />
+                    </marker>
+                </defs>
+            </svg>
 
-                {/* Nodes */}
-                {map.nodes.map((node) => (
-                    <MapNodeComponent
-                    key={node.id}
-                    node={node}
-                    isSelected={node.id === selectedNodeId}
-                    onClick={() => setSelectedNodeId(node.id)}
-                    />
-                ))}
-            </div>
+            {/* Nodes */}
+            {map.nodes.map((node) => (
+                <MapNodeComponent
+                key={node.id}
+                node={node}
+                isSelected={node.id === selectedNodeId}
+                onClick={() => setSelectedNodeId(node.id)}
+                />
+            ))}
         </div>
       </div>
     </div>

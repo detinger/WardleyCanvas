@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import { WardleyMap, MapNode } from '@/lib/types';
 import Header from '@/components/wardley/Header';
 import MapCanvas from '@/components/wardley/MapCanvas';
@@ -25,22 +24,40 @@ export default function WardleyCanvasPage() {
   const [isTemplatesOpen, setTemplatesOpen] = React.useState(false);
   const [isSaveOpen, setSaveOpen] = React.useState(false);
   const [isLoadOpen, setLoadOpen] = React.useState(false);
+  const canvasRef = React.useRef<HTMLDivElement>(null);
 
   const { saveMap, loadMap, getSavedMaps, deleteMap } = useWardleyMaps();
   const { toast } = useToast();
 
-  const handleUpdateNodePosition = React.useCallback(
-    (nodeId: string, x: number, y: number) => {
+  const handleDragEnd = React.useCallback(
+    (event: DragEndEvent) => {
+      const { active, delta } = event;
+      const nodeId = active.id as string;
+
       setMap((prevMap) => {
-        const newNodes = prevMap.nodes.map((node) => {
-          if (node.id === nodeId) {
+        const node = prevMap.nodes.find((n) => n.id === nodeId);
+        if (!node || !canvasRef.current) return prevMap;
+
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+
+        const currentXPixels = (node.x / 100) * canvasRect.width;
+        const currentYPixels = (node.y / 100) * canvasRect.height;
+
+        const newXPixels = currentXPixels + delta.x;
+        const newYPixels = currentYPixels + delta.y;
+
+        const newXPercent = (newXPixels / canvasRect.width) * 100;
+        const newYPercent = (newYPixels / canvasRect.height) * 100;
+
+        const newNodes = prevMap.nodes.map((n) => {
+          if (n.id === nodeId) {
             let stage: MapNode['stage'] = 'genesis';
-            if (x > 75) stage = 'commodity';
-            else if (x > 50) stage = 'product';
-            else if (x > 25) stage = 'custom';
-            return { ...node, x, y, stage };
+            if (newXPercent > 75) stage = 'commodity';
+            else if (newXPercent > 50) stage = 'product';
+            else if (newXPercent > 25) stage = 'custom';
+            return { ...n, x: newXPercent, y: newYPercent, stage };
           }
-          return node;
+          return n;
         });
         return { ...prevMap, nodes: newNodes };
       });
@@ -88,7 +105,7 @@ export default function WardleyCanvasPage() {
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndContext onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-screen flex-col bg-background font-body">
         <Header
           onNewMap={handleNewMap}
@@ -102,7 +119,7 @@ export default function WardleyCanvasPage() {
             map={map}
             selectedNodeId={selectedNodeId}
             setSelectedNodeId={setSelectedNodeId}
-            onNodeMove={handleUpdateNodePosition}
+            canvasRef={canvasRef}
           />
         </main>
         
@@ -126,6 +143,6 @@ export default function WardleyCanvasPage() {
           deleteMap={deleteMap}
         />
       </div>
-    </DndProvider>
+    </DndContext>
   );
 }
