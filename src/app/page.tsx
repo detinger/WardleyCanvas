@@ -32,7 +32,7 @@ export default function WardleyCanvasPage() {
 
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
-      const { active, over } = event;
+      const { active, over, delta } = event;
 
       // Handle dropping a new node from the toolbox
       if (active.data.current?.type === 'new-node') {
@@ -88,29 +88,17 @@ export default function WardleyCanvasPage() {
       const nodeId = active.id as string;
       setMap((prevMap) => {
         const node = prevMap.nodes.find((n) => n.id === nodeId);
-        if (!node || !canvasRef.current || !active.rect.current.translated) {
+        if (!node || !canvasRef.current) {
           return prevMap;
         }
 
         const canvasRect = canvasRef.current.getBoundingClientRect();
+        
+        const newX = node.x + (delta.x / canvasRect.width) * 100;
+        const newY = node.y + (delta.y / canvasRect.height) * 100;
 
-        const dropX =
-          active.rect.current.translated.left -
-          canvasRect.left +
-          active.rect.current.width / 2;
-        const dropY =
-          active.rect.current.translated.top -
-          canvasRect.top +
-          active.rect.current.height / 2;
-
-        const newXPercent = Math.max(
-          0,
-          Math.min(100, (dropX / canvasRect.width) * 100)
-        );
-        const newYPercent = Math.max(
-          0,
-          Math.min(100, (dropY / canvasRect.height) * 100)
-        );
+        const newXPercent = Math.max(0, Math.min(100, newX));
+        const newYPercent = Math.max(0, Math.min(100, newY));
 
         let stage: MapNode['stage'] = 'genesis';
         if (newXPercent > 75) stage = 'commodity';
