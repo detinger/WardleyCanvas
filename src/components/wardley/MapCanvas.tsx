@@ -80,13 +80,13 @@ export default function MapCanvas({
       }}
     >
       {/* Value Chain Axis Labels */}
-      <div className="absolute top-8 left-2 -translate-y-1/2 -rotate-90 origin-bottom-left text-sm font-medium text-muted-foreground">
+      <div className="absolute top-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
         Visible
       </div>
       <div className="absolute top-1/2 left-0 -translate-y-1/2 -rotate-90 text-base font-semibold text-foreground tracking-wider">
         Value Chain
       </div>
-      <div className="absolute bottom-8 left-2 translate-y-1/2 -rotate-90 origin-top-left text-sm font-medium text-muted-foreground">
+      <div className="absolute bottom-10 left-2 -rotate-90 text-sm font-medium text-muted-foreground">
         Invisible
       </div>
 
