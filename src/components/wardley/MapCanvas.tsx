@@ -28,6 +28,9 @@ export default function MapCanvas({
     id: 'map-canvas-drop-area',
   });
 
+  // This state will trigger re-renders on resize to update SVG links
+  const [, setTick] = React.useState(0);
+
   const combinedRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current =
@@ -36,6 +39,26 @@ export default function MapCanvas({
     },
     [canvasRef, setNodeRef]
   );
+  
+  React.useEffect(() => {
+    // We need to know when the canvas resizes to redraw SVG links.
+    if (!canvasRef.current) return;
+    
+    const resizeObserver = new ResizeObserver(() => {
+      // Force a re-render
+      setTick(t => t + 1);
+    });
+
+    resizeObserver.observe(canvasRef.current);
+
+    // Cleanup observer on unmount
+    return () => {
+      if (canvasRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        resizeObserver.unobserve(canvasRef.current);
+      }
+    };
+  }, [canvasRef]);
 
   const getNodePosition = (nodeId: string) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
