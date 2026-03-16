@@ -20,7 +20,7 @@
     --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 88%;
+    --border: 214.3 31.8% 80%;
     --input: 214.3 31.8% 88%;
     --ring: 211 80% 41%;
     --radius: 0.5rem;
@@ -63,4 +63,9 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+next-dev-indicator {
+  display: none !important;
+  visibility: hidden !important;
 }
