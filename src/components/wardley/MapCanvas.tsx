@@ -101,6 +101,11 @@ export default function MapCanvas({
       <div className="flex-1 w-full flex flex-col border border-dashed rounded-lg">
         {/* Drop area */}
         <div ref={combinedRef} className="flex-1 relative w-full h-full">
+          {/* Vertical Evolution Lines */}
+          <div className="absolute top-0 bottom-0 left-1/4 border-l border-dashed border-border"></div>
+          <div className="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-border"></div>
+          <div className="absolute top-0 bottom-0 left-3/4 border-l border-dashed border-border"></div>
+
           {/* Links */}
           <svg
             width="100%"
@@ -140,7 +145,7 @@ export default function MapCanvas({
           {EvolutionStages.map((stage) => (
             <div
               key={stage}
-              className="w-1/4 py-2 text-center text-sm font-semibold text-muted-foreground border-r border-dashed last:border-r-0"
+              className="w-1/4 py-2 text-center text-sm font-semibold text-muted-foreground"
             >
               {stage}
             </div>
