@@ -1,0 +1,102 @@
+import { WardleyMap } from './types';
+
+export const templates: WardleyMap[] = [
+  {
+    id: 'template-ecommerce',
+    name: 'E-commerce Platform',
+    nodes: [
+      { id: 'user', name: 'User', x: 5, y: 10, stage: 'genesis' },
+      { id: 'website', name: 'Website', x: 35, y: 25, stage: 'custom' },
+      { id: 'product_db', name: 'Product DB', x: 60, y: 45, stage: 'product' },
+      { id: 'payments', name: 'Payments', x: 80, y: 48, stage: 'commodity' },
+      { id: 'platform', name: 'Platform', x: 65, y: 70, stage: 'product' },
+      { id: 'compute', name: 'Compute', x: 85, y: 90, stage: 'commodity' },
+    ],
+    links: [
+      { from: 'user', to: 'website' },
+      { from: 'website', to: 'product_db' },
+      { from: 'website', to: 'payments' },
+      { from: 'website', to: 'platform' },
+      { from: 'platform', to: 'compute' },
+      { from: 'product_db', to: 'compute' },
+    ],
+  },
+  {
+    id: 'template-rideshare',
+    name: 'Ride-Sharing App',
+    nodes: [
+      { id: 'rider', name: 'Rider', x: 8, y: 15, stage: 'genesis' },
+      { id: 'mobile_app', name: 'Mobile App', x: 40, y: 30, stage: 'custom' },
+      { id: 'matching', name: 'Matching Algo', x: 35, y: 50, stage: 'custom' },
+      { id: 'geolocation', name: 'Geolocation', x: 60, y: 65, stage: 'product' },
+      { id: 'maps_api', name: 'Maps API', x: 85, y: 80, stage: 'commodity' },
+      { id: 'compute', name: 'Compute', x: 90, y: 95, stage: 'commodity' },
+    ],
+    links: [
+      { from: 'rider', to: 'mobile_app' },
+      { from: 'mobile_app', to: 'matching' },
+      { from: 'mobile_app', to: 'geolocation' },
+      { from: 'matching', to: 'compute' },
+      { from: 'geolocation', to: 'maps_api' },
+    ],
+  },
+  {
+    id: 'template-saas-bi',
+    name: 'SaaS BI Tool',
+    nodes: [
+      { id: 'analyst', name: 'Analyst', x: 10, y: 12, stage: 'genesis' },
+      { id: 'dashboard', name: 'Dashboard', x: 30, y: 28, stage: 'custom' },
+      { id: 'dataviz', name: 'Data Viz', x: 60, y: 45, stage: 'product' },
+      { id: 'query_engine', name: 'Query Engine', x: 40, y: 60, stage: 'custom' },
+      { id: 'auth', name: 'Auth Service', x: 80, y: 75, stage: 'commodity' },
+      { id: 'storage', name: 'Data Storage', x: 90, y: 90, stage: 'commodity' },
+    ],
+    links: [
+      { from: 'analyst', to: 'dashboard' },
+      { from: 'dashboard', to: 'dataviz' },
+      { from: 'dashboard', to: 'query_engine' },
+      { from: 'dashboard', to: 'auth' },
+      { from: 'query_engine', to: 'storage' },
+    ],
+  },
+  {
+    id: 'template-iot',
+    name: 'IoT Smart Home',
+    nodes: [
+      { id: 'homeowner', name: 'Homeowner', x: 5, y: 10, stage: 'genesis' },
+      { id: 'app', name: 'Mobile App', x: 35, y: 25, stage: 'custom' },
+      { id: 'cloud', name: 'Cloud Backend', x: 65, y: 50, stage: 'product' },
+      { id: 'firmware', name: 'Device Firmware', x: 40, y: 70, stage: 'custom' },
+      { id: 'sensor', name: 'Sensor', x: 15, y: 85, stage: 'genesis' },
+      { id: 'power', name: 'Power', x: 95, y: 95, stage: 'commodity' },
+    ],
+    links: [
+      { from: 'homeowner', to: 'app' },
+      { from: 'app', to: 'cloud' },
+      { from: 'cloud', to: 'firmware' },
+      { from: 'firmware', to: 'sensor' },
+      { from: 'cloud', to: 'power' },
+      { from: 'firmware', to: 'power' },
+    ],
+  },
+  {
+    id: 'template-publication',
+    name: 'Online Publication',
+    nodes: [
+      { id: 'reader', name: 'Reader', x: 7, y: 20, stage: 'genesis' },
+      { id: 'website', name: 'Website', x: 60, y: 35, stage: 'product' },
+      { id: 'cms', name: 'CMS', x: 65, y: 60, stage: 'product' },
+      { id: 'ad_server', name: 'Ad Server', x: 82, y: 55, stage: 'commodity' },
+      { id: 'cdn', name: 'CDN', x: 88, y: 80, stage: 'commodity' },
+      { id: 'hosting', name: 'Hosting', x: 92, y: 92, stage: 'commodity' },
+    ],
+    links: [
+      { from: 'reader', to: 'website' },
+      { from: 'website', to: 'cms' },
+      { from: 'website', to: 'ad_server' },
+      { from: 'website', to: 'cdn' },
+      { from: 'cdn', to: 'hosting' },
+      { from: 'cms', to: 'hosting' },
+    ],
+  },
+];
