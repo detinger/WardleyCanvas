@@ -83,23 +83,15 @@ export default function MapCanvas({
       <div className="absolute top-8 left-2 -translate-y-1/2 -rotate-90 origin-bottom-left text-sm font-medium text-muted-foreground">
         Visible
       </div>
+      <div className="absolute top-1/2 left-0 -translate-y-1/2 -rotate-90 text-base font-semibold text-foreground tracking-wider">
+        Value Chain
+      </div>
       <div className="absolute bottom-8 left-2 translate-y-1/2 -rotate-90 origin-top-left text-sm font-medium text-muted-foreground">
         Invisible
       </div>
 
       {/* Main Canvas Area */}
       <div className="flex-1 w-full flex flex-col border border-dashed rounded-lg">
-        {/* Evolution Axis Header */}
-        <div className="flex border-b border-dashed">
-          {EvolutionStages.map((stage) => (
-            <div
-              key={stage}
-              className="w-1/4 py-2 text-center text-sm font-semibold text-muted-foreground border-r border-dashed last:border-r-0"
-            >
-              {stage}
-            </div>
-          ))}
-        </div>
         {/* Drop area */}
         <div ref={combinedRef} className="flex-1 relative w-full h-full">
           {/* Links */}
@@ -134,6 +126,17 @@ export default function MapCanvas({
               onClick={() => handleNodeClick(node.id)}
               onNameChange={(newName) => onNodeNameChange(node.id, newName)}
             />
+          ))}
+        </div>
+        {/* Evolution Axis Footer */}
+        <div className="flex border-t border-dashed">
+          {EvolutionStages.map((stage) => (
+            <div
+              key={stage}
+              className="w-1/4 py-2 text-center text-sm font-semibold text-muted-foreground border-r border-dashed last:border-r-0"
+            >
+              {stage}
+            </div>
           ))}
         </div>
       </div>
