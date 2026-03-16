@@ -85,7 +85,7 @@ export default function MapNodeComponent({
       {...listeners}
       {...attributes}
       className={cn(
-        'absolute flex flex-col items-center group cursor-grab',
+        'absolute flex items-center justify-center w-4 h-4 group cursor-grab',
         isDragging && 'opacity-50 cursor-grabbing'
       )}
       onClick={(e) => {
@@ -96,7 +96,7 @@ export default function MapNodeComponent({
     >
       <div
         className={cn(
-          'w-4 h-4 rounded-full shadow-md',
+          'w-full h-full rounded-full shadow-md',
           isSelected
             ? 'bg-primary ring-2 ring-offset-2 ring-primary ring-offset-background'
             : 'bg-muted-foreground'
@@ -110,13 +110,13 @@ export default function MapNodeComponent({
           onChange={handleNameChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-32 h-7 mt-2 text-center text-sm cursor-text"
+          className="absolute w-32 h-7 mt-1 text-center text-sm cursor-text top-full"
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
         />
       ) : (
         <div
-          className="mt-2 px-2 py-0.5 rounded-md text-center text-sm font-medium text-card-foreground bg-background/70 backdrop-blur-sm shadow-sm whitespace-nowrap"
+          className="absolute top-full mt-1 px-2 py-0.5 rounded-md text-center text-sm font-medium text-card-foreground bg-background/70 backdrop-blur-sm shadow-sm whitespace-nowrap"
           onDoubleClick={handleDoubleClick}
         >
           {node.name}
