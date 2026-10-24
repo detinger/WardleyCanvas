@@ -9,6 +9,8 @@ import { useRouter } from 'next/navigation';
 import {
   loadMap,
   loadDraft,
+  clearDraft,
+  resolveRecovery,
   createMap,
   useMigrationEffect,
 } from '@/hooks/use-persistence';
@@ -37,22 +39,24 @@ export default function EditorPage({ params }: PageProps) {
       return;
     }
 
-    const saved = loadMap(mapId);
-    const draft = loadDraft(mapId);
-
-    if (!saved && !draft) {
-      setNotFound(true);
-      return;
-    }
-
-    if (draft && saved) {
-      // Draft is newer — ask user
-      setDraftExists(true);
-      setMap(saved);
-    } else if (draft) {
-      setMap(draft);
-    } else {
-      setMap(saved!);
+    const decision = resolveRecovery(loadMap(mapId), loadDraft(mapId));
+    switch (decision.kind) {
+      case 'not-found':
+        setNotFound(true);
+        return;
+      case 'offer-draft':
+        // Draft differs from the saved map — ask user
+        setDraftExists(true);
+        setMap(decision.saved);
+        return;
+      case 'saved':
+        // A draft identical to the saved map is stale
+        clearDraft(mapId);
+        setMap(decision.map);
+        return;
+      case 'draft-only':
+        setMap(decision.map);
+        return;
     }
   }, [mapId, router]);
 
@@ -64,6 +68,7 @@ export default function EditorPage({ params }: PageProps) {
   };
 
   const handleDiscardDraft = () => {
+    clearDraft(mapId);
     setDraftExists(false);
   };
 
@@ -139,7 +144,8 @@ export default function EditorPage({ params }: PageProps) {
           onDiscard={handleDiscardDraft}
         />
       )}
-      <EditorLayout initialMap={map} />
+      {/* Remount when the draft is chosen: the editor reads initialMap only once */}
+      <EditorLayout key={useDraft ? 'draft' : 'saved'} initialMap={map} />
     </>
   );
 }

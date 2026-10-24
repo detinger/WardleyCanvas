@@ -100,6 +100,8 @@ export function applyScenarioChanges(baseline: WardleyMap, changes: ScenarioChan
   // Deep-copy mutable parts of the map
   let elements = baseline.elements.map((e) => ({ ...e }));
   let dependencies = baseline.dependencies.map((d) => ({ ...d }));
+  let evolutions = baseline.evolutions.map((ev) => ({ ...ev }));
+  let pipelines = baseline.pipelines.map((p) => ({ ...p, memberElementIds: [...p.memberElementIds] }));
 
   for (const change of changes) {
     switch (change.kind) {
@@ -126,6 +128,13 @@ export function applyScenarioChanges(baseline: WardleyMap, changes: ScenarioChan
         dependencies = dependencies.filter(
           (d) => d.fromId !== change.elementId && d.toId !== change.elementId
         );
+        evolutions = evolutions.filter((ev) => ev.elementId !== change.elementId);
+        pipelines = pipelines
+          .filter((p) => p.parentElementId !== change.elementId)
+          .map((p) => ({
+            ...p,
+            memberElementIds: p.memberElementIds.filter((id) => id !== change.elementId),
+          }));
         break;
 
       case 'change-dependency':
@@ -153,6 +162,8 @@ export function applyScenarioChanges(baseline: WardleyMap, changes: ScenarioChan
     ...baseline,
     elements,
     dependencies,
+    evolutions,
+    pipelines,
     analysis: makeEmptyAnalysis(), // scenario map has separate analysis
   };
 }

@@ -67,9 +67,14 @@ const RE_STYLE      = /^style\s+/i;
 const RE_SIZE       = /^size\s+/i;
 const RE_ANCHOR     = /^anchor\s+(.+?)\s*\[([^\]]+)\](?:\s+label\s+\[([^\]]+)\])?$/i;
 const RE_COMPONENT  = /^component\s+(.+?)\s*\[([^\]]+)\](?:\s+label\s+\[([^\]]+)\])?$/i;
-// Second name is greedy to handle names with spaces (labels not supported in current DSL subset)
-const RE_DEP        = /^(.+?)\s*->\s*(.+)$/;
-const RE_FLOW       = /^(.+?)\s*\+>\s*(.+)$/;
+// Second name is greedy to handle names with spaces. An optional `; context`
+// suffix carries the dependency label; flows may also use `A+'label'>B`.
+const RE_DEP        = /^(.+?)\s*->\s*(.+?)(?:\s*;\s*(.*))?$/;
+const RE_FLOW       = /^(.+?)\s*\+(?:'([^']*)')?>\s*(.+?)(?:\s*;\s*(.*))?$/;
+// App-specific: the serializer writes the map purpose as a recognisable comment
+const RE_PURPOSE    = /^\s*\/\/\s*Purpose:\s*(.+)$/i;
+// `//` starts a comment unless it is part of a URL scheme (`https://`)
+const RE_INLINE_COMMENT = /(^|[^:])\/\/.*$/;
 const RE_EVOLVE     = /^evolve\s+(.+?)\s+([\d.]+)(?:\s+as\s+(.+))?$/i;
 const RE_INERTIA    = /^inertia\s+(.+)$/i;
 const RE_BUILD      = /^build\s+(.+)$/i;
@@ -114,6 +119,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
 
   // Working state
   let title = 'Untitled Map';
+  let purpose: string | undefined;
   const elementsByName = new Map<string, MapElement>();
   const elements: MapElement[] = [];
   const dependencies: Dependency[] = [];
@@ -125,12 +131,17 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
   const pendingInertia: Array<{ name: string; line: number }> = [];
   const pendingSourced: Array<{ name: string; sourcing: 'build' | 'buy' | 'outsource'; line: number }> = [];
 
-  const lines = source.split('\n');
+  // Source line of each reference, for diagnostics raised during resolution
+  const refLine = new Map<object, number>();
+
+  const lines = source.split(/\r?\n/);
 
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
+    const purposeMatch = RE_PURPOSE.exec(lines[i]);
+    if (purposeMatch) { purpose = purposeMatch[1].trim(); continue; }
     // Strip inline comments and trim
-    const raw = lines[i].replace(/\/\/.*$/, '').trim();
+    const raw = lines[i].replace(RE_INLINE_COMMENT, '$1').trim();
     if (RE_BLANK.test(raw) || RE_COMMENT.test(lines[i])) continue;
 
     // title
@@ -227,34 +238,40 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
 
     // flow (must come before dep because `+>` might not appear in dep re, but let's be safe)
     m = RE_FLOW.exec(raw);
-    if (m && raw.includes('+>')) {
+    if (m) {
       const fromName = m[1].trim();
-      const toName = m[2].trim();
+      const toName = m[3].trim();
+      const label = (m[2] ?? m[4])?.trim();
       const dep: Dependency = {
         id: generateId('dep'),
         fromId: fromName, // resolved below
         toId: toName,     // resolved below
         kind: 'flow',
+        ...(label ? { label } : {}),
       };
       (dep as any)._fromName = fromName;
       (dep as any)._toName = toName;
+      refLine.set(dep, lineNum);
       dependencies.push(dep);
       continue;
     }
 
     // dependency
     m = RE_DEP.exec(raw);
-    if (m && raw.includes('->')) {
+    if (m) {
       const fromName = m[1].trim();
       const toName = m[2].trim();
+      const label = m[3]?.trim();
       const dep: Dependency = {
         id: generateId('dep'),
         fromId: fromName,
         toId: toName,
         kind: 'dependency',
+        ...(label ? { label } : {}),
       };
       (dep as any)._fromName = fromName;
       (dep as any)._toName = toName;
+      refLine.set(dep, lineNum);
       dependencies.push(dep);
       continue;
     }
@@ -275,6 +292,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
         ...(m[3] ? { targetName: m[3].trim() } : {}),
       });
       (evolutions[evolutions.length - 1] as any)._elementName = name;
+      refLine.set(evolutions[evolutions.length - 1], lineNum);
       continue;
     }
 
@@ -329,8 +347,8 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
     if (m) {
       const name = m[1].trim();
       const parts = m[2].split(',').map((s) => s.trim());
-      const lo = parseFloat2(parts[0]);
-      const hi = parseFloat2(parts[1]);
+      const lo = parseFloat2(parts[0] ?? '');
+      const hi = parseFloat2(parts[1] ?? '');
       if (lo === null || hi === null) {
         err(diags, lineNum, `Invalid pipeline range for "${name}"`);
         continue;
@@ -343,6 +361,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
         endEvolution: clampNormalized(Math.max(lo, hi)),
       });
       (pipelines[pipelines.length - 1] as any)._parentName = name;
+      refLine.set(pipelines[pipelines.length - 1], lineNum);
       continue;
     }
 
@@ -382,8 +401,9 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
     const toName = (dep as any)._toName as string;
     const fromEl = elementsByName.get(fromName);
     const toEl = elementsByName.get(toName);
-    if (!fromEl) { err(diags, 0, `Dependency from "${fromName}" not found`); dep.fromId = ''; continue; }
-    if (!toEl)   { err(diags, 0, `Dependency to "${toName}" not found`); dep.toId = ''; continue; }
+    const line = refLine.get(dep) ?? 0;
+    if (!fromEl) { err(diags, line, `Dependency from "${fromName}" not found`); dep.fromId = ''; continue; }
+    if (!toEl)   { err(diags, line, `Dependency to "${toName}" not found`); dep.toId = ''; continue; }
     dep.fromId = fromEl.id;
     dep.toId = toEl.id;
     delete (dep as any)._fromName;
@@ -394,7 +414,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
   for (const ev of evolutions) {
     const name = (ev as any)._elementName as string;
     const el = elementsByName.get(name);
-    if (!el) { warn(diags, 0, `evolve: element "${name}" not found`); ev.elementId = ''; continue; }
+    if (!el) { warn(diags, refLine.get(ev) ?? 0, `evolve: element "${name}" not found`); ev.elementId = ''; continue; }
     ev.elementId = el.id;
     delete (ev as any)._elementName;
   }
@@ -403,7 +423,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
   for (const pip of pipelines) {
     const name = (pip as any)._parentName as string;
     const el = elementsByName.get(name);
-    if (!el) { warn(diags, 0, `pipeline: element "${name}" not found`); continue; }
+    if (!el) { warn(diags, refLine.get(pip) ?? 0, `pipeline: element "${name}" not found`); continue; }
     pip.parentElementId = el.id;
     // Assign member elements whose evolution falls within the pipeline range
     for (const candidate of elements) {
@@ -424,6 +444,7 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
     schemaVersion: 1,
     id: mapId,
     title,
+    ...(purpose ? { purpose } : {}),
     evolutionLabels: DEFAULT_EVOLUTION_LABELS,
     stageBoundaries: DEFAULT_STAGE_BOUNDARIES,
     elements,
@@ -463,7 +484,7 @@ export function serializeOWM(map: WardleyMap): string {
   const lines: string[] = [];
 
   lines.push(`title ${map.title}`);
-  if (map.purpose) lines.push(`// ${map.purpose}`);
+  if (map.purpose) lines.push(`// Purpose: ${map.purpose.replace(/\n/g, ' ')}`);
   lines.push('');
 
   // Anchors first
@@ -500,9 +521,14 @@ export function serializeOWM(map: WardleyMap): string {
     const from = nameById.get(dep.fromId);
     const to   = nameById.get(dep.toId);
     if (!from || !to) continue;
+    const label = dep.label?.replace(/\n/g, ' ');
+    if (dep.kind === 'flow' && label && !label.includes("'")) {
+      lines.push(`${escapeName(from)}+'${label}'>${escapeName(to)}`);
+      continue;
+    }
     const arrow = dep.kind === 'flow' ? '+>' : '->';
     let line = `${escapeName(from)}${arrow}${escapeName(to)}`;
-    if (dep.label) line += ` ${dep.label}`;
+    if (label) line += `; ${label}`;
     lines.push(line);
   }
   if (map.dependencies.length > 0) lines.push('');

@@ -160,6 +160,25 @@ export function hasDraft(id: Id): boolean {
   return id in drafts;
 }
 
+/** Content equality ignoring the timestamp that saveMap rewrites. */
+function sameContent(a: WardleyMap, b: WardleyMap): boolean {
+  return JSON.stringify({ ...a, updatedAt: '' }) === JSON.stringify({ ...b, updatedAt: '' });
+}
+
+export type RecoveryDecision =
+  | { kind: 'not-found' }
+  | { kind: 'saved'; map: WardleyMap }
+  | { kind: 'draft-only'; map: WardleyMap }
+  | { kind: 'offer-draft'; saved: WardleyMap; draft: WardleyMap };
+
+/** Decide what to open: only offer recovery when the draft actually differs. */
+export function resolveRecovery(saved: WardleyMap | null, draft: WardleyMap | null): RecoveryDecision {
+  if (!saved && !draft) return { kind: 'not-found' };
+  if (!saved) return { kind: 'draft-only', map: draft! };
+  if (!draft || sameContent(saved, draft)) return { kind: 'saved', map: saved };
+  return { kind: 'offer-draft', saved, draft };
+}
+
 // ---------------------------------------------------------------------------
 // React hook — exposes autosave with debounce
 // ---------------------------------------------------------------------------

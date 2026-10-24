@@ -1,0 +1,20 @@
+{
+  "id": "template-ecommerce",
+  "name": "E-commerce Platform",
+  "nodes": [
+    {"id":"user","name":"User","x":5,"y":10,"stage":"genesis"},
+    {"id":"website","name":"Website","x":35,"y":25,"stage":"custom"},
+    {"id":"product_db","name":"Product DB","x":60,"y":45,"stage":"product"},
+    {"id":"payments","name":"Payments","x":80,"y":48,"stage":"commodity"},
+    {"id":"platform","name":"Platform","x":65,"y":70,"stage":"product"},
+    {"id":"compute","name":"Compute","x":85,"y":90,"stage":"commodity"}
+  ],
+  "links": [
+    {"from":"user","to":"website"},
+    {"from":"website","to":"product_db"},
+    {"from":"website","to":"payments"},
+    {"from":"website","to":"platform"},
+    {"from":"platform","to":"compute"},
+    {"from":"product_db","to":"compute"}
+  ]
+}
