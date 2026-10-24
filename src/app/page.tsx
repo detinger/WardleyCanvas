@@ -1,223 +1,403 @@
 'use client';
 
+// Section 3.2: Overview / home page.
+// Shows recent maps, quick-start actions, and learning progress.
+
 import * as React from 'react';
-import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import { WardleyMap, MapNode } from '@/lib/types';
-import Header from '@/components/wardley/Header';
-import MapCanvas from '@/components/wardley/MapCanvas';
-import ConceptsGuide from '@/components/wardley/ConceptsGuide';
-import TemplatesGallery from '@/components/wardley/TemplatesGallery';
-import SaveMapDialog from '@/components/wardley/SaveMapDialog';
-import LoadMapDialog from '@/components/wardley/LoadMapDialog';
-import { useWardleyMaps } from '@/hooks/use-wardley-maps';
-import { templates } from '@/lib/templates';
-import { useToast } from '@/hooks/use-toast';
-import EditorSidebar from '@/components/wardley/EditorSidebar';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Map, Plus, Clock, ArrowRight } from 'lucide-react';
+import { listMaps, createMap, useMigrationEffect } from '@/hooks/use-persistence';
+import { MapSummary } from '@/domain/types';
 
-const initialMap: WardleyMap = templates[0];
+export default function HomePage() {
+  useMigrationEffect();
+  const router = useRouter();
+  const [maps, setMaps] = React.useState<MapSummary[]>([]);
+  const [isClient, setIsClient] = React.useState(false);
 
-export default function WardleyCanvasPage() {
-  const [map, setMap] = React.useState<WardleyMap>(initialMap);
-  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(
-    null
-  );
-  const [isGuideOpen, setGuideOpen] = React.useState(false);
-  const [isTemplatesOpen, setTemplatesOpen] = React.useState(false);
-  const [isSaveOpen, setSaveOpen] = React.useState(false);
-  const [isLoadOpen, setLoadOpen] = React.useState(false);
-  const canvasRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    setIsClient(true);
+    setMaps(listMaps().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+  }, []);
 
-  const { saveMap, loadMap, getSavedMaps, deleteMap } = useWardleyMaps();
-  const { toast } = useToast();
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    })
-  );
-
-  const handleDragEnd = React.useCallback(
-    (event: DragEndEvent) => {
-      const { active, over, delta } = event;
-
-      // Handle dropping a new node from the toolbox
-      if (active.data.current?.type === 'new-node') {
-        if (over?.id === 'map-canvas-drop-area' && canvasRef.current && active.rect.current.initial) {
-          const canvasRect = canvasRef.current.getBoundingClientRect();
-          const initialRect = active.rect.current.initial;
-
-          const dropX = (initialRect.left + delta.x) - canvasRect.left + (initialRect.width / 2);
-          const dropY = (initialRect.top + delta.y) - canvasRect.top + (initialRect.height / 2);
-
-          const xPercent = Math.max(
-            0,
-            Math.min(100, (dropX / canvasRect.width) * 100)
-          );
-          const yPercent = Math.max(
-            0,
-            Math.min(100, (dropY / canvasRect.height) * 100)
-          );
-
-          let stage: MapNode['stage'] = 'genesis';
-          if (xPercent > 75) stage = 'commodity';
-          else if (xPercent > 50) stage = 'product';
-          else if (xPercent > 25) stage = 'custom';
-
-          const newNodeName = `Component ${map.nodes.length + 1}`;
-          const newNode: MapNode = {
-            id: `node_${Date.now()}`,
-            name: newNodeName,
-            x: xPercent,
-            y: yPercent,
-            stage: stage,
-          };
-
-          setMap((prevMap) => ({
-            ...prevMap,
-            nodes: [...prevMap.nodes, newNode],
-          }));
-          toast({
-            title: 'Component Added',
-            description: `"${newNodeName}" was added. Double-click to rename.`,
-          });
-        }
-        return;
-      }
-
-      // Handle dragging an existing node
-      const nodeId = active.id as string;
-      setMap((prevMap) => {
-        const node = prevMap.nodes.find((n) => n.id === nodeId);
-        if (!node || !canvasRef.current) {
-          return prevMap;
-        }
-
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        
-        const newX = node.x + (delta.x / canvasRect.width) * 100;
-        const newY = node.y + (delta.y / canvasRect.height) * 100;
-
-        const newXPercent = Math.max(0, Math.min(100, newX));
-        const newYPercent = Math.max(0, Math.min(100, newY));
-
-        let stage: MapNode['stage'] = 'genesis';
-        if (newXPercent > 75) stage = 'commodity';
-        else if (newXPercent > 50) stage = 'product';
-        else if (newXPercent > 25) stage = 'custom';
-
-        return {
-          ...prevMap,
-          nodes: prevMap.nodes.map((n) =>
-            n.id === nodeId
-              ? { ...n, x: newXPercent, y: newYPercent, stage }
-              : n
-          ),
-        };
-      });
-    },
-    [map.nodes, toast]
-  );
-
-  const handleSelectTemplate = (template: WardleyMap) => {
-    setMap(template);
-    setTemplatesOpen(false);
-    toast({
-      title: 'Template Loaded',
-      description: `The "${template.name}" map is now ready to use.`,
-    });
+  const handleCreateMap = () => {
+    const newMap = createMap('Untitled Map');
+    router.push(`/maps/${newMap.id}`);
   };
 
-  const handleSaveMap = (name: string) => {
-    saveMap({ ...map, name });
-    setSaveOpen(false);
-    toast({
-      title: 'Map Saved',
-      description: `Your map "${name}" has been saved successfully.`,
-    });
-  };
-
-  const handleLoadMap = (mapData: WardleyMap) => {
-    setMap(mapData);
-    setLoadOpen(false);
-    toast({
-      title: 'Map Loaded',
-      description: `Your map "${mapData.name}" has been loaded.`,
-    });
-  };
-
-  const handleNewMap = () => {
-    setMap({
-      name: 'New Map',
-      nodes: [],
-      links: [],
-    });
-    toast({
-      title: 'New Map Created',
-      description: 'Your new canvas is ready.',
-    });
-  };
-
-  const handleNodeNameChange = (nodeId: string, newName: string) => {
-    setMap((prevMap) => ({
-      ...prevMap,
-      nodes: prevMap.nodes.map((n) =>
-        n.id === nodeId ? { ...n, name: newName } : n
-      ),
-    }));
-  };
+  const recent = maps.slice(0, 6);
 
   return (
-    <DndContext id="wardley-map-dnd" onDragEnd={handleDragEnd} sensors={sensors}>
-      <div className="flex h-screen w-screen flex-col bg-background font-body">
-        <Header
-          onNewMap={handleNewMap}
-          onSave={() => setSaveOpen(true)}
-          onLoad={() => setLoadOpen(true)}
-          onShowGuide={() => setGuideOpen(true)}
-          onShowTemplates={() => setTemplatesOpen(true)}
-        />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-hidden">
-            <MapCanvas
-              map={map}
-              selectedNodeId={selectedNodeId}
-              setSelectedNodeId={setSelectedNodeId}
-              canvasRef={canvasRef}
-              setMap={setMap}
-              onNodeNameChange={handleNodeNameChange}
-            />
-          </main>
-          <EditorSidebar />
-        </div>
+    <main
+      id="main-content"
+      style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 48px' }}
+    >
+      {/* Hero */}
+      <div style={{ marginBottom: 40 }}>
+        <p className="text-eyebrow" style={{ marginBottom: 8 }}>
+          Wardley Maps Studio
+        </p>
+        <h1
+          style={{
+            fontSize: 32,
+            fontWeight: 650,
+            color: 'var(--text)',
+            letterSpacing: '-0.02em',
+            margin: '0 0 12px',
+            maxWidth: '72ch',
+          }}
+        >
+          Map, understand, and act on your strategic landscape
+        </h1>
+        <p
+          style={{
+            fontSize: 15,
+            color: 'var(--text-muted)',
+            margin: '0 0 24px',
+            maxWidth: '72ch',
+          }}
+        >
+          Create Wardley Maps to visualize your value chain, identify strategic
+          patterns, and reason about possible futures — without pretending the
+          map is a forecast.
+        </p>
 
-        <ConceptsGuide open={isGuideOpen} onOpenChange={setGuideOpen} />
-        <TemplatesGallery
-          open={isTemplatesOpen}
-          onOpenChange={setTemplatesOpen}
-          onSelectTemplate={handleSelectTemplate}
-        />
-        <SaveMapDialog
-          open={isSaveOpen}
-          onOpenChange={setSaveOpen}
-          onSave={handleSaveMap}
-          currentName={map.name}
-        />
-        <LoadMapDialog
-          open={isLoadOpen}
-          onOpenChange={setLoadOpen}
-          getMaps={getSavedMaps}
-          loadMap={handleLoadMap}
-          deleteMap={deleteMap}
-        />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={handleCreateMap}
+            style={{
+              height: 34,
+              padding: '0 16px',
+              borderRadius: 6,
+              background: 'var(--primary)',
+              color: 'var(--text-on-primary)',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 550,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Plus size={16} />
+            Create map
+          </button>
+          <Link
+            href="/maps"
+            style={{
+              height: 34,
+              padding: '0 16px',
+              borderRadius: 6,
+              background: 'var(--bg-elevated)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+              fontSize: 14,
+              fontWeight: 550,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+            }}
+          >
+            <Map size={16} />
+            My maps
+          </Link>
+        </div>
       </div>
-    </DndContext>
+
+      {/* Recent maps */}
+      {isClient && recent.length > 0 && (
+        <section style={{ marginBottom: 40 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 20,
+                fontWeight: 650,
+                color: 'var(--text)',
+                margin: 0,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Recent maps
+            </h2>
+            <Link
+              href="/maps"
+              style={{
+                fontSize: 13,
+                color: 'var(--primary)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              View all <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: 16,
+            }}
+          >
+            {recent.map((m) => (
+              <MapCard key={m.id} map={m} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {isClient && maps.length === 0 && (
+        <section>
+          <EmptyMapState onCreate={handleCreateMap} />
+        </section>
+      )}
+
+      {/* Quick-start */}
+      <section>
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 650,
+            color: 'var(--text)',
+            marginBottom: 16,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          What is a Wardley Map?
+        </h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: 16,
+          }}
+        >
+          {CONCEPT_CARDS.map((card) => (
+            <ConceptCard key={card.title} {...card} />
+          ))}
+        </div>
+      </section>
+    </main>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Map card
+// ---------------------------------------------------------------------------
+
+function MapCard({ map }: { map: MapSummary }) {
+  return (
+    <Link
+      href={`/maps/${map.id}`}
+      style={{
+        display: 'block',
+        padding: 18,
+        borderRadius: 10,
+        border: '1px solid var(--border)',
+        background: 'var(--bg-elevated)',
+        textDecoration: 'none',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'box-shadow 120ms, border-color 120ms',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLAnchorElement).style.boxShadow = 'var(--shadow)';
+        (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border-strong)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLAnchorElement).style.boxShadow = 'var(--shadow-sm)';
+        (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)';
+      }}
+    >
+      {/* Mini canvas preview placeholder */}
+      <div
+        style={{
+          height: 80,
+          borderRadius: 6,
+          background: 'var(--canvas-bg)',
+          border: '1px solid var(--border)',
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Map size={24} style={{ color: 'var(--border-strong)' }} />
+      </div>
+
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 550,
+          color: 'var(--text)',
+          marginBottom: 4,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {map.title}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          fontSize: 12,
+          color: 'var(--text-subtle)',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Clock size={11} />
+          {formatRelative(map.updatedAt)}
+        </span>
+        <span>{map.elementCount} elements</span>
+        <span>rev {map.revision}</span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyMapState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div
+      style={{
+        padding: '36px 16px',
+        textAlign: 'center',
+        border: '2px dashed var(--border)',
+        borderRadius: 10,
+        maxWidth: 480,
+      }}
+    >
+      <Map size={36} style={{ color: 'var(--border-strong)', marginBottom: 12 }} />
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 650,
+          color: 'var(--text)',
+          margin: '0 0 8px',
+        }}
+      >
+        No maps yet
+      </h3>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+        Create your first Wardley Map to start exploring your value chain.
+      </p>
+      <button
+        onClick={onCreate}
+        style={{
+          height: 34,
+          padding: '0 16px',
+          borderRadius: 6,
+          background: 'var(--primary)',
+          color: 'var(--text-on-primary)',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: 13,
+          fontWeight: 550,
+        }}
+      >
+        Create first map
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Concept cards
+// ---------------------------------------------------------------------------
+
+const CONCEPT_CARDS = [
+  {
+    title: 'Anchors and needs',
+    description:
+      'Start with who has a need. Anchors represent users or stakeholders at the top of the visible value chain.',
+    color: 'var(--primary-soft)',
+    textColor: 'var(--primary)',
+  },
+  {
+    title: 'Components and value chains',
+    description:
+      'Map the components needed to satisfy that need, from visible activities down to underlying infrastructure.',
+    color: 'var(--success-soft)',
+    textColor: 'var(--success)',
+  },
+  {
+    title: 'Evolution',
+    description:
+      'Position each component by how mature it is — from bespoke genesis through custom-built and product to commodity.',
+    color: 'var(--accent-soft)',
+    textColor: 'var(--accent)',
+  },
+  {
+    title: 'Strategic context',
+    description:
+      'Climatic patterns, doctrine, and gameplay help you reason about what to do — without implying a guaranteed outcome.',
+    color: 'var(--recommendation-soft)',
+    textColor: 'var(--recommendation)',
+  },
+];
+
+function ConceptCard({
+  title,
+  description,
+  color,
+  textColor,
+}: (typeof CONCEPT_CARDS)[0]) {
+  return (
+    <div
+      style={{
+        padding: 18,
+        borderRadius: 10,
+        border: '1px solid var(--border)',
+        background: 'var(--bg-elevated)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-block',
+          padding: '3px 9px',
+          borderRadius: 999,
+          background: color,
+          color: textColor,
+          fontSize: 12,
+          fontWeight: 650,
+          marginBottom: 10,
+        }}
+      >
+        {title}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+        {description}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  const hr = Math.floor(min / 60);
+  const day = Math.floor(hr / 24);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  if (hr < 24) return `${hr}h ago`;
+  if (day < 7) return `${day}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
