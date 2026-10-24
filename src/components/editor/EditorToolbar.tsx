@@ -82,15 +82,16 @@ export default function EditorToolbar({
       role="toolbar"
       aria-label="Map editor toolbar"
       style={{
-        height: 56,
+        minHeight: 56,
         display: 'flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
         gap: 2,
-        padding: '0 12px',
+        rowGap: 4,
+        padding: '6px 12px',
         background: 'var(--bg-elevated)',
         borderBottom: '1px solid var(--border)',
         flexShrink: 0,
-        overflowX: 'auto',
       }}
     >
       {/* Group 1: back + title + save state */}

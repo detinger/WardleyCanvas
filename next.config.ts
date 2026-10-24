@@ -4,9 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Lets E2E runs use their own build dir alongside a running dev server
   distDir: process.env.NEXT_DIST_DIR || '.next',
-    devIndicators: {
-    appIsrStatus: false,
-    },
+  // Hide the Next.js dev-mode indicator badge
+  devIndicators: false,
     typescript: {
     ignoreBuildErrors: true,
   },

@@ -24,6 +24,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
+      className="app-shell"
       style={{
         display: 'flex',
         height: '100vh',

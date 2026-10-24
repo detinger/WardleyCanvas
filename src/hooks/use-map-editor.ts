@@ -28,6 +28,7 @@ import {
   canRedo,
 } from '@/domain/commands';
 import { scheduleAutosave } from './use-persistence';
+import { nudgeElements, duplicateElements, NUDGE_STEP, NUDGE_STEP_LARGE } from '@/domain/editing';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +56,8 @@ export interface EditorState {
   saveState: SaveState;
   /** Whether the canvas is in keyboard-nudge mode */
   nudging: boolean;
+  /** Document before an in-progress drag; the drag commits as one undo step */
+  previewBase: WardleyMap | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +67,10 @@ export interface EditorState {
 type Action =
   | { type: 'LOAD_MAP'; map: WardleyMap }
   | { type: 'REPLACE_MAP'; map: WardleyMap }
+  | { type: 'MOVE_PREVIEW'; id: Id; evolution: Normalized; visibility: Normalized }
+  | { type: 'MOVE_COMMIT'; id: Id; evolution: Normalized; visibility: Normalized }
+  | { type: 'NUDGE'; dEvolution: number; dVisibility: number }
+  | { type: 'DUPLICATE' }
   | { type: 'ADD_ELEMENT'; element: MapElement }
   | { type: 'UPDATE_ELEMENT'; id: Id; changes: Partial<MapElement> }
   | { type: 'REMOVE_ELEMENTS'; ids: Id[] }
@@ -116,7 +123,18 @@ function removeElementsFromMap(map: WardleyMap, ids: Id[]): WardleyMap {
 // Reducer
 // ---------------------------------------------------------------------------
 
-function reducer(state: EditorState, action: Action): EditorState {
+function setCoords(map: WardleyMap, id: Id, evolution: Normalized, visibility: Normalized): WardleyMap {
+  return {
+    ...map,
+    elements: map.elements.map((el) =>
+      el.id === id
+        ? { ...el, evolution: clampNormalized(evolution), visibility: clampNormalized(visibility) }
+        : el
+    ),
+  };
+}
+
+export function reducer(state: EditorState, action: Action): EditorState {
   const map = state.stack.present;
 
   switch (action.type) {
@@ -127,6 +145,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedIds: [],
         saveState: 'clean',
         linkSourceId: null,
+        previewBase: null,
       };
 
     // Undoable whole-document replacement (source edits, import)
@@ -137,6 +156,41 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedIds: state.selectedIds.filter((id) => ids.has(id)),
         linkSourceId: null,
       };
+    }
+
+    // Drag preview: replace the present document without an undo entry
+    case 'MOVE_PREVIEW': {
+      const base = state.previewBase ?? map;
+      return {
+        ...state,
+        previewBase: base,
+        stack: { ...state.stack, present: setCoords(map, action.id, action.evolution, action.visibility) },
+      };
+    }
+
+    // Drop: one undo step from the pre-drag document (none if nothing moved)
+    case 'MOVE_COMMIT': {
+      const base = state.previewBase ?? map;
+      const before = base.elements.find((el) => el.id === action.id);
+      const restored = { ...state, previewBase: null, stack: { ...state.stack, present: base } };
+      if (!before) return restored;
+      const next = setCoords(base, action.id, action.evolution, action.visibility);
+      const after = next.elements.find((el) => el.id === action.id)!;
+      if (after.evolution === before.evolution && after.visibility === before.visibility) return restored;
+      return withUpdatedMap(restored, next);
+    }
+
+    case 'NUDGE': {
+      const ids = state.selectedIds.filter((id) => map.elements.some((el) => el.id === id));
+      if (ids.length === 0) return state;
+      return withUpdatedMap(state, nudgeElements(map, ids, action.dEvolution, action.dVisibility));
+    }
+
+    case 'DUPLICATE': {
+      const ids = state.selectedIds.filter((id) => map.elements.some((el) => el.id === id));
+      if (ids.length === 0) return state;
+      const result = duplicateElements(map, ids);
+      return { ...withUpdatedMap(state, result.map), selectedIds: result.newIds };
     }
 
     case 'ADD_ELEMENT':
@@ -187,12 +241,12 @@ function reducer(state: EditorState, action: Action): EditorState {
 
     case 'UNDO':
       return canUndo(state.stack)
-        ? { ...state, stack: undoCmd(state.stack), saveState: 'unsaved' }
+        ? { ...state, stack: undoCmd(state.stack), saveState: 'unsaved', previewBase: null }
         : state;
 
     case 'REDO':
       return canRedo(state.stack)
-        ? { ...state, stack: redoCmd(state.stack), saveState: 'unsaved' }
+        ? { ...state, stack: redoCmd(state.stack), saveState: 'unsaved', previewBase: null }
         : state;
 
     case 'SET_TOOL':
@@ -238,6 +292,7 @@ export function useMapEditor(initialMap: WardleyMap) {
     linkSourceId: null,
     saveState: 'clean' as SaveState,
     nudging: false,
+    previewBase: null,
   }));
 
   const map = state.stack.present;
@@ -246,16 +301,18 @@ export function useMapEditor(initialMap: WardleyMap) {
   // Autosave when map changes
   useEffect(() => {
     if (!autosaveEnabled.current) return;
-    if (state.saveState === 'unsaved') {
+    if (state.saveState === 'unsaved' && state.previewBase === null) {
       scheduleAutosave(map);
     }
-  }, [map, state.saveState]);
+  }, [map, state.saveState, state.previewBase]);
 
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // Shortcuts belong to the canvas, not to an open dialog
+      if ((e.target as HTMLElement).closest?.('[role="dialog"]')) return;
 
       const meta = e.metaKey || e.ctrlKey;
 
@@ -269,6 +326,19 @@ export function useMapEditor(initialMap: WardleyMap) {
         if (state.selectedIds.length > 0) {
           e.preventDefault();
           dispatch({ type: 'REMOVE_ELEMENTS', ids: state.selectedIds });
+        }
+      } else if (meta && (e.key === 'd' || e.key === 'D')) {
+        if (state.selectedIds.length > 0) {
+          e.preventDefault();
+          dispatch({ type: 'DUPLICATE' });
+        }
+      } else if (e.key.startsWith('Arrow') && !meta && !e.altKey) {
+        if (state.selectedIds.length > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
+          const dEvolution = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
+          const dVisibility = e.key === 'ArrowUp' ? step : e.key === 'ArrowDown' ? -step : 0;
+          dispatch({ type: 'NUDGE', dEvolution, dVisibility });
         }
       } else if (e.key === 'Escape') {
         dispatch({ type: 'DESELECT' });
@@ -339,6 +409,22 @@ export function useMapEditor(initialMap: WardleyMap) {
     },
     []
   );
+
+  const previewMove = useCallback((id: Id, evolution: Normalized, visibility: Normalized) => {
+    dispatch({ type: 'MOVE_PREVIEW', id, evolution, visibility });
+  }, []);
+
+  const commitMove = useCallback((id: Id, evolution: Normalized, visibility: Normalized) => {
+    dispatch({ type: 'MOVE_COMMIT', id, evolution, visibility });
+  }, []);
+
+  const nudge = useCallback((dEvolution: number, dVisibility: number) => {
+    dispatch({ type: 'NUDGE', dEvolution, dVisibility });
+  }, []);
+
+  const duplicateSelected = useCallback(() => {
+    dispatch({ type: 'DUPLICATE' });
+  }, []);
 
   const removeElements = useCallback((ids: Id[]) => {
     dispatch({ type: 'REMOVE_ELEMENTS', ids });
@@ -470,6 +556,10 @@ export function useMapEditor(initialMap: WardleyMap) {
     addElement,
     updateElement,
     moveElement,
+    previewMove,
+    commitMove,
+    nudge,
+    duplicateSelected,
     removeElements,
     createDependency,
     removeDependency,

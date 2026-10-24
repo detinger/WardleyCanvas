@@ -86,6 +86,17 @@ const RE_PIPELINE   = /^pipeline\s+(.+?)\s*\[([^\]]+)\]$/i;
 const RE_MARKET     = /^market\s+(.+?)\s*\[([^\]]+)\]$/i;
 const RE_SUBMAP     = /^submap\s+(.+?)\s*\[([^\]]+)\](?:\s+url\s*\[([^\]]+)\])?$/i;
 
+/** Only absolute http(s) URLs survive import; anything else (javascript:, data:, …) is dropped. */
+export function sanitizeUrl(raw: string): string | null {
+  const url = raw.trim();
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseCoords(raw: string, diags: OWMDiagnostic[], line: number): [Normalized, Normalized] | null {
   const parts = raw.split(',').map((s) => s.trim());
   if (parts.length < 2) {
@@ -230,7 +241,11 @@ export function parseOWM(source: string, existingId?: Id): OWMParseResult {
         visibility: coords[0],
         evolution: coords[1],
       };
-      if (m[3]) el.submapRef = { url: m[3].trim() };
+      if (m[3]) {
+        const url = sanitizeUrl(m[3]);
+        if (url) el.submapRef = { url };
+        else warn(diags, lineNum, `Submap URL for "${name}" was removed: only http(s) links are allowed`);
+      }
       elementsByName.set(name, el);
       elements.push(el);
       continue;

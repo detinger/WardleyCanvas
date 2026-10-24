@@ -1,10 +1,15 @@
 'use client';
 
-// IO-04: Export dialog — JSON, OWM, SVG downloads.
+// IO-04: Export dialog — native JSON, OWM, SVG, PNG and analysis downloads.
+// SVG/PNG are rendered from the map data (renderer/svg-export), not copied from
+// the screen, so they are deterministic and independent of zoom and selection.
 
 import * as React from 'react';
 import { WardleyMap } from '@/domain/types';
 import { serializeOWM } from '@/parser/owm';
+import { owmLossReport } from '@/parser/import';
+import { renderMapSVG, exportSize, ExportTheme } from '@/renderer/svg-export';
+import DialogOverlay from './DialogOverlay';
 import { Download, X, FileJson, FileCode2, Image, BarChart2 } from 'lucide-react';
 import { CLIMATE_CATALOG } from '@/analysis/climate-catalog';
 import { DOCTRINE_CATALOG } from '@/analysis/doctrine-catalog';
@@ -12,121 +17,84 @@ import { GAMEPLAY_CATALOG } from '@/analysis/gameplay-catalog';
 
 interface ExportDialogProps {
   map: WardleyMap;
-  svgRef: React.RefObject<SVGSVGElement | null>;
   onClose: () => void;
 }
 
-export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps) {
+export default function ExportDialog({ map, onClose }: ExportDialogProps) {
   const [exporting, setExporting] = React.useState<string | null>(null);
+  const [theme, setTheme] = React.useState<ExportTheme>('light');
+  const [background, setBackground] = React.useState(true);
+  const [pngScale, setPngScale] = React.useState(2);
+  const owmLoss = React.useMemo(() => owmLossReport(map), [map]);
 
   const exportJSON = React.useCallback(() => {
-    setExporting('json');
-    try {
-      const json = JSON.stringify(map, null, 2);
-      downloadText(json, `${slug(map.title)}.wardley.json`, 'application/json');
-    } finally {
-      setExporting(null);
-    }
+    downloadText(JSON.stringify(map, null, 2), `${slug(map.title)}.wardley.json`, 'application/json');
   }, [map]);
 
   const exportOWM = React.useCallback(() => {
-    setExporting('owm');
-    try {
-      const owm = serializeOWM(map);
-      downloadText(owm, `${slug(map.title)}.owm`, 'text/plain');
-    } finally {
-      setExporting(null);
-    }
+    downloadText(serializeOWM(map), `${slug(map.title)}.owm`, 'text/plain');
   }, [map]);
 
   const exportSVG = React.useCallback(() => {
-    setExporting('svg');
-    try {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const clone = svg.cloneNode(true) as SVGElement;
-      // Inline computed styles for portability
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      // Replace CSS variables with computed values
-      inlineCssVars(clone, svg);
-      const serializer = new XMLSerializer();
-      const svgStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
-      downloadText(svgStr, `${slug(map.title)}.svg`, 'image/svg+xml');
-    } finally {
-      setExporting(null);
-    }
-  }, [map, svgRef]);
+    const svg = '<?xml version="1.0" encoding="UTF-8"?>\n' + renderMapSVG(map, { theme, background });
+    downloadText(svg, `${slug(map.title)}.svg`, 'image/svg+xml');
+  }, [map, theme, background]);
 
   const exportAnalysis = React.useCallback(() => {
-    setExporting('analysis');
-    try {
-      const payload = {
-        exportedAt: new Date().toISOString(),
-        mapId: map.id,
-        mapTitle: map.title,
-        mapRevision: map.revision,
-        catalogVersions: {
-          climate: CLIMATE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-          doctrine: DOCTRINE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-          gameplay: GAMEPLAY_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-        },
-        analysis: map.analysis,
-        attribution: 'Catalog content: Wardley Maps — Simon Wardley (CC BY-SA 4.0). Assessments are map-specific human observations.',
-      };
-      downloadText(JSON.stringify(payload, null, 2), `${slug(map.title)}.analysis.json`, 'application/json');
-    } finally {
-      setExporting(null);
-    }
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      mapId: map.id,
+      mapTitle: map.title,
+      mapRevision: map.revision,
+      catalogVersions: {
+        climate: CLIMATE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
+        doctrine: DOCTRINE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
+        gameplay: GAMEPLAY_CATALOG.map((e) => ({ id: e.id, version: e.version })),
+      },
+      analysis: map.analysis,
+      attribution: 'Catalog content: Wardley Maps — Simon Wardley (CC BY-SA 4.0). Assessments are map-specific human observations.',
+    };
+    downloadText(JSON.stringify(payload, null, 2), `${slug(map.title)}.analysis.json`, 'application/json');
   }, [map]);
 
   const exportPNG = React.useCallback(() => {
     setExporting('png');
-    const svg = svgRef.current;
-    if (!svg) { setExporting(null); return; }
-
-    const clone = svg.cloneNode(true) as SVGElement;
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    inlineCssVars(clone, svg);
-    const serializer = new XMLSerializer();
-    const svgStr = serializer.serializeToString(clone);
-    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-
+    const { width, height } = exportSize();
+    const svg = renderMapSVG(map, { theme, background });
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     const img = new window.Image();
-    const rect = svg.getBoundingClientRect();
-    const scale = 2;
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = rect.width * scale;
-      canvas.height = rect.height * scale;
+      canvas.width = width * pngScale;
+      canvas.height = height * pngScale;
       const ctx = canvas.getContext('2d')!;
-      ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0);
+      ctx.scale(pngScale, pngScale);
+      ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);
       canvas.toBlob((pngBlob) => {
-        if (!pngBlob) return;
-        const pngUrl = URL.createObjectURL(pngBlob);
-        const a = document.createElement('a');
-        a.href = pngUrl;
-        a.download = `${slug(map.title)}.png`;
-        a.click();
-        URL.revokeObjectURL(pngUrl);
         setExporting(null);
+        if (!pngBlob) return;
+        downloadBlob(pngBlob, `${slug(map.title)}.png`);
       }, 'image/png');
     };
     img.onerror = () => { URL.revokeObjectURL(url); setExporting(null); };
     img.src = url;
-  }, [map, svgRef]);
+  }, [map, theme, background, pngScale]);
+
+  const { width, height } = exportSize();
 
   return (
-    <Overlay onClose={onClose}>
+    <DialogOverlay labelledBy="export-dialog-title" onClose={onClose}>
       <div
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
-          borderRadius: 10,
+          borderRadius: 14,
           boxShadow: 'var(--shadow-lg)',
-          width: 380,
+          width: 'min(440px, 100%)',
+          maxHeight: 'calc(100vh - 48px)',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
         }}
       >
@@ -137,26 +105,22 @@ export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps
             alignItems: 'center',
             padding: '14px 16px',
             borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
           }}
         >
-          <h2 style={{ flex: 1, margin: 0, fontSize: 15, fontWeight: 650, color: 'var(--text)' }}>
+          <h2 id="export-dialog-title" style={{ flex: 1, margin: 0, fontSize: 15, fontWeight: 650, color: 'var(--text)' }}>
             Export map
           </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={closeBtn}
-          >
+          <button onClick={onClose} aria-label="Close" style={closeBtn}>
             <X size={16} />
           </button>
         </div>
 
-        {/* Options */}
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <ExportOption
             icon={<FileJson size={20} />}
             title="Wardley JSON"
-            description="Lossless native format — preserves all data including analysis"
+            description="Lossless native format: elements, notes, analysis and evidence"
             ext=".wardley.json"
             busy={exporting === 'json'}
             onClick={exportJSON}
@@ -164,15 +128,52 @@ export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps
           <ExportOption
             icon={<FileCode2 size={20} />}
             title="OWM source"
-            description="Plain-text DSL compatible with OnlineWardleyMaps"
+            description="Plain-text maps-as-code compatible with OnlineWardleyMaps"
             ext=".owm"
             busy={exporting === 'owm'}
             onClick={exportOWM}
           />
+          <div aria-label="OWM loss report" style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 4px 4px' }}>
+            {owmLoss.length === 0 ? (
+              'Everything in this map is representable in OWM.'
+            ) : (
+              <>
+                OWM leaves out:
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                  {owmLoss.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+              </>
+            )}
+          </div>
+
+          {/* Image options */}
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', margin: '4px 0', display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 13, color: 'var(--text)' }}>
+            <legend style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 4px' }}>Image options (SVG and PNG)</legend>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Theme
+              <select value={theme} onChange={(e) => setTheme(e.target.value as ExportTheme)} style={selectStyle}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={background} onChange={(e) => setBackground(e.target.checked)} />
+              Background
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              PNG scale
+              <select value={pngScale} onChange={(e) => setPngScale(Number(e.target.value))} style={selectStyle}>
+                <option value={1}>1× ({width}×{height})</option>
+                <option value={2}>2× ({width * 2}×{height * 2})</option>
+                <option value={3}>3× ({width * 3}×{height * 3})</option>
+              </select>
+            </label>
+          </fieldset>
+
           <ExportOption
             icon={<Image size={20} />}
             title="SVG"
-            description="Vector image — scalable, embeddable in presentations and docs"
+            description="Scalable vector image of the whole map, independent of zoom"
             ext=".svg"
             busy={exporting === 'svg'}
             onClick={exportSVG}
@@ -180,7 +181,7 @@ export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps
           <ExportOption
             icon={<Download size={20} />}
             title="PNG"
-            description="Raster image at 2× resolution for sharing"
+            description={`Raster image at ${pngScale}× resolution`}
             ext=".png"
             busy={exporting === 'png'}
             onClick={exportPNG}
@@ -188,7 +189,7 @@ export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps
           <ExportOption
             icon={<BarChart2 size={20} />}
             title="Analysis JSON"
-            description="Climate, doctrine, gameplay assessments with catalog provenance and attribution"
+            description="Climate, doctrine and gameplay assessments with catalog versions and attribution"
             ext=".analysis.json"
             busy={exporting === 'analysis'}
             onClick={exportAnalysis}
@@ -201,12 +202,14 @@ export default function ExportDialog({ map, svgRef, onClose }: ExportDialogProps
             borderTop: '1px solid var(--border)',
             fontSize: 12,
             color: 'var(--text-subtle)',
+            flexShrink: 0,
           }}
         >
-          Exports are deterministic for unchanged input. JSON is lossless; OWM omits analysis layers. Analysis export includes catalog attribution (CC BY-SA 4.0).
+          Files are generated in your browser; nothing is uploaded. Exports are identical for an unchanged map
+          (the analysis file adds a generated timestamp). Images show the whole map without selection highlights.
         </div>
       </div>
-    </Overlay>
+    </DialogOverlay>
   );
 }
 
@@ -273,27 +276,6 @@ function ExportOption({
   );
 }
 
-function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
-      }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {children}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -316,7 +298,10 @@ function slug(title: string): string {
 }
 
 function downloadText(content: string, filename: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
+  downloadBlob(new Blob([content], { type: mime }), filename);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -327,44 +312,12 @@ function downloadText(content: string, filename: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-function getComputedStyleValue(el: Element, prop: string): string {
-  return getComputedStyle(el).getPropertyValue(prop).trim();
-}
-
-const CSS_VAR_RE = /var\(--[^)]+\)/g;
-
-function resolveCssVar(value: string, sourceEl: Element): string {
-  return value.replace(CSS_VAR_RE, (match) => {
-    const varName = match.slice(4, -1).trim();
-    return getComputedStyle(sourceEl).getPropertyValue(varName).trim() || match;
-  });
-}
-
-function inlineCssVars(clone: Element, source: Element) {
-  // Walk all elements and inline style attributes with var() references
-  const walk = (cloneEl: Element, sourceEl: Element) => {
-    const style = cloneEl.getAttribute('style');
-    if (style && style.includes('var(')) {
-      cloneEl.setAttribute('style', resolveCssVar(style, sourceEl));
-    }
-    // Inline fill/stroke attributes that use var()
-    for (const attr of ['fill', 'stroke']) {
-      const val = cloneEl.getAttribute(attr);
-      if (val && val.includes('var(')) {
-        cloneEl.setAttribute(attr, resolveCssVar(val, sourceEl));
-      }
-    }
-    const cloneChildren = Array.from(cloneEl.children);
-    const srcChildren = Array.from(sourceEl.children);
-    cloneChildren.forEach((c, i) => {
-      if (srcChildren[i]) walk(c, srcChildren[i]);
-    });
-  };
-  walk(clone, source);
-
-  // Also inline the background on the root SVG
-  const bg = getComputedStyleValue(source, '--canvas-bg');
-  if (bg) {
-    clone.setAttribute('style', `background:${bg};` + (clone.getAttribute('style') ?? ''));
-  }
-}
+const selectStyle: React.CSSProperties = {
+  height: 28,
+  padding: '0 6px',
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'var(--bg-elevated)',
+  color: 'var(--text)',
+  fontSize: 13,
+};

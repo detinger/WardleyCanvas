@@ -6,76 +6,75 @@
 
 import * as React from 'react';
 import { WardleyMap } from '@/domain/types';
-import { parseOWM } from '@/parser/owm';
+import { prepareImport, ImportPreview as ImportPreviewData, MAX_IMPORT_CHARS } from '@/parser/import';
+import DialogOverlay from './DialogOverlay';
 import { Upload, X, AlertCircle, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 
 interface ImportDialogProps {
-  currentMapId: string;
-  onImport: (map: WardleyMap) => void;
+  currentMap: WardleyMap;
+  /** Called only after the user confirms a preview without errors */
+  onImport: (preview: ImportPreviewData) => void;
   onClose: () => void;
 }
 
-type ImportState = 'idle' | 'parsing' | 'preview' | 'error';
+type ImportState = 'idle' | 'preview';
 
-export default function ImportDialog({ currentMapId, onImport, onClose }: ImportDialogProps) {
+export default function ImportDialog({ currentMap, onImport, onClose }: ImportDialogProps) {
   const [source, setSource] = React.useState('');
+  const [fileName, setFileName] = React.useState<string | undefined>();
   const [importState, setImportState] = React.useState<ImportState>('idle');
-  const [preview, setPreview] = React.useState<ReturnType<typeof parseOWM> | null>(null);
+  const [preview, setPreview] = React.useState<ImportPreviewData | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  const handleParse = React.useCallback(() => {
-    if (!source.trim()) return;
-    setImportState('parsing');
-    try {
-      const result = parseOWM(source, currentMapId);
-      setPreview(result);
-      setImportState('preview');
-    } catch (e) {
-      setImportState('error');
-    }
-  }, [source, currentMapId]);
+  // Preview is pure: nothing reaches the editor until Confirm
+  const showPreview = React.useCallback((text: string, name?: string) => {
+    if (!text.trim()) return;
+    setPreview(prepareImport(text, currentMap, name));
+    setImportState('preview');
+  }, [currentMap]);
+
+  const handleParse = React.useCallback(() => showPreview(source, fileName), [showPreview, source, fileName]);
 
   const handleFileChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
+      e.target.value = '';
       if (!file) return;
+      if (file.size > MAX_IMPORT_CHARS * 4) {
+        // Refuse before reading a huge file into memory
+        setPreview(prepareImport('x'.repeat(MAX_IMPORT_CHARS + 1), currentMap, file.name));
+        setImportState('preview');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        if (file.name.endsWith('.json')) {
-          // Try native JSON
-          try {
-            const parsed = JSON.parse(text) as WardleyMap;
-            if (parsed.schemaVersion && parsed.elements) {
-              onImport({ ...parsed, id: currentMapId });
-              onClose();
-              return;
-            }
-          } catch {}
-        }
-        setSource(text);
+        const text = String(ev.target?.result ?? '');
+        // JSON files are not shown in the OWM text box; OWM files are, for editing
+        setSource(file.name.toLowerCase().endsWith('.json') ? '' : text);
+        setFileName(file.name);
+        showPreview(text, file.name);
       };
       reader.readAsText(file);
     },
-    [currentMapId, onImport, onClose]
+    [currentMap, showPreview]
   );
 
   const handleConfirm = React.useCallback(() => {
     if (!preview || preview.hasErrors) return;
-    onImport(preview.map);
+    onImport(preview);
     onClose();
   }, [preview, onImport, onClose]);
 
   return (
-    <Overlay onClose={onClose}>
+    <DialogOverlay labelledBy="import-dialog-title" onClose={onClose}>
       <div
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
-          borderRadius: 10,
+          borderRadius: 14,
           boxShadow: 'var(--shadow-lg)',
-          width: 520,
-          maxHeight: '85vh',
+          width: 'min(560px, 100%)',
+          maxHeight: 'calc(100vh - 48px)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -92,7 +91,7 @@ export default function ImportDialog({ currentMapId, onImport, onClose }: Import
           }}
         >
           <Upload size={16} style={{ marginRight: 8, color: 'var(--primary)' }} />
-          <h2 style={{ flex: 1, margin: 0, fontSize: 15, fontWeight: 650, color: 'var(--text)' }}>
+          <h2 id="import-dialog-title" style={{ flex: 1, margin: 0, fontSize: 15, fontWeight: 650, color: 'var(--text)' }}>
             Import map
           </h2>
           <button onClick={onClose} aria-label="Close" style={closeBtn}>
@@ -134,12 +133,21 @@ export default function ImportDialog({ currentMapId, onImport, onClose }: Import
             </button>
           </div>
 
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-subtle)' }}>or paste OWM source below</div>
+          {fileName && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Selected file: <span style={{ fontFamily: 'var(--font-mono)' }}>{fileName}</span>
+            </div>
+          )}
+
+          <label htmlFor="import-source" style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-subtle)' }}>
+            or paste OWM source or native JSON below
+          </label>
 
           {/* Paste area */}
           <textarea
+            id="import-source"
             value={source}
-            onChange={(e) => { setSource(e.target.value); setImportState('idle'); setPreview(null); }}
+            onChange={(e) => { setSource(e.target.value); setFileName(undefined); setImportState('idle'); setPreview(null); }}
             placeholder={`title My Map\n\nanchor User [0.95, 0.1]\ncomponent Tea Cup [0.8, 0.6]\n\nUser->Tea Cup`}
             rows={8}
             spellCheck={false}
@@ -178,7 +186,7 @@ export default function ImportDialog({ currentMapId, onImport, onClose }: Import
           {importState !== 'preview' ? (
             <button
               onClick={handleParse}
-              disabled={!source.trim() || importState === 'parsing'}
+              disabled={!source.trim()}
               style={{ ...primaryBtn, opacity: !source.trim() ? 0.5 : 1 }}
             >
               Preview import
@@ -194,7 +202,7 @@ export default function ImportDialog({ currentMapId, onImport, onClose }: Import
           )}
         </div>
       </div>
-    </Overlay>
+    </DialogOverlay>
   );
 }
 
@@ -202,8 +210,8 @@ export default function ImportDialog({ currentMapId, onImport, onClose }: Import
 // Preview summary
 // ---------------------------------------------------------------------------
 
-function ImportPreview({ result }: { result: ReturnType<typeof parseOWM> }) {
-  const { map, diagnostics, unsupported, hasErrors } = result;
+function ImportPreview({ result }: { result: ImportPreviewData }) {
+  const { map, diagnostics, unsupported, lossNotes, hasErrors, format } = result;
   const errors   = diagnostics.filter((d) => d.severity === 'error');
   const warnings = diagnostics.filter((d) => d.severity === 'warning');
   const anchors   = map.elements.filter((e) => e.kind === 'anchor').length;
@@ -220,6 +228,7 @@ function ImportPreview({ result }: { result: ReturnType<typeof parseOWM> }) {
     >
       {/* Status bar */}
       <div
+        role="status"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -272,8 +281,13 @@ function ImportPreview({ result }: { result: ReturnType<typeof parseOWM> }) {
         </div>
       )}
 
-      {/* Unsupported */}
-      {unsupported.length > 0 && (
+      {/* Loss report (unsupported constructs, ignored lines, replaced analysis) */}
+      {!hasErrors && lossNotes.length > 0 && (
+        <ul aria-label="What will not carry over" style={{ margin: 0, padding: '6px 12px 6px 28px', fontSize: 12, color: 'var(--text-subtle)' }}>
+          {lossNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      )}
+      {unsupported.length > 0 && lossNotes.length === 0 && (
         <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-subtle)' }}>
           Unsupported constructs (skipped): {unsupported.join(', ')}
         </div>
@@ -281,7 +295,8 @@ function ImportPreview({ result }: { result: ReturnType<typeof parseOWM> }) {
 
       {!hasErrors && (
         <div style={{ padding: '6px 12px', fontSize: 11, color: 'var(--text-subtle)', borderTop: '1px solid var(--border)' }}>
-          Note: importing will replace the current map's elements, dependencies, and text. Analysis layers are preserved.
+          {format === 'json' ? 'Native JSON' : 'OWM'} import replaces the current map&apos;s elements, dependencies and notes.
+          Components with the same name keep their details and analysis links. You can undo the import.
         </div>
       )}
     </div>
@@ -300,27 +315,6 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 // ---------------------------------------------------------------------------
 // Shared styles
 // ---------------------------------------------------------------------------
-
-function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.35)',
-      }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {children}
-    </div>
-  );
-}
 
 const closeBtn: React.CSSProperties = {
   width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -9,17 +9,16 @@
 import * as React from 'react';
 import { WardleyMap, MapElement, Dependency, Pipeline, EvolutionMovement, MapAnnotation, Id, Normalized } from '@/domain/types';
 import { ActiveTool } from '@/hooks/use-map-editor';
+import { LW, LH, toSvgX, toSvgY, fromSvgX, fromSvgY, ViewBox, zoomViewBox, panViewBox, trimLineEnd } from '@/renderer/geometry';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const LW = 1000;  // logical width
-const LH = 600;   // logical height
 const ELEMENT_RADIUS = 8;
 const ANCHOR_HALF = 10; // half-width of anchor diamond
 const LABEL_OFFSET_Y = 20;
-const DEFAULT_VIEWBOX = { x: -20, y: -20, w: LW + 40, h: LH + 40 };
+const DEFAULT_VIEWBOX = { x: -70, y: -20, w: LW + 90, h: LH + 50 };
 const AXIS_LEFT = 0;
 const AXIS_BOTTOM = LH;
 const Y_LABEL_GAP = 14; // px from axis
@@ -27,29 +26,6 @@ const Y_LABEL_GAP = 14; // px from axis
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function toSvgX(evolution: Normalized): number {
-  return evolution * LW;
-}
-
-function toSvgY(visibility: Normalized): number {
-  return (1 - visibility) * LH;
-}
-
-function fromSvgX(x: number): Normalized {
-  return Math.max(0, Math.min(1, x / LW));
-}
-
-function fromSvgY(y: number): Normalized {
-  return Math.max(0, Math.min(1, 1 - y / LH));
-}
-
-interface ViewBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 function viewboxToString(vb: ViewBox): string {
   return `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
@@ -130,24 +106,8 @@ export default function CanvasRenderer({
 
   // Expose fit/zoom to parent via callbacks
   const fit = React.useCallback(() => setViewBox(DEFAULT_VIEWBOX), []);
-  const zoomIn = React.useCallback(() =>
-    setViewBox((vb) => {
-      const factor = 0.75;
-      const cx = vb.x + vb.w / 2;
-      const cy = vb.y + vb.h / 2;
-      const nw = vb.w * factor;
-      const nh = vb.h * factor;
-      return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
-    }), []);
-  const zoomOut = React.useCallback(() =>
-    setViewBox((vb) => {
-      const factor = 1 / 0.75;
-      const cx = vb.x + vb.w / 2;
-      const cy = vb.y + vb.h / 2;
-      const nw = vb.w * factor;
-      const nh = vb.h * factor;
-      return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
-    }), []);
+  const zoomIn = React.useCallback(() => setViewBox((vb) => zoomViewBox(vb, 0.75)), []);
+  const zoomOut = React.useCallback(() => setViewBox((vb) => zoomViewBox(vb, 1 / 0.75)), []);
 
   React.useEffect(() => { onFitRequested?.(fit); }, [fit, onFitRequested]);
   React.useEffect(() => { onZoomInRequested?.(zoomIn); }, [zoomIn, onZoomInRequested]);
@@ -158,6 +118,8 @@ export default function CanvasRenderer({
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      // Shortcuts belong to the canvas, not to an open dialog
+      if ((e.target as HTMLElement).closest?.('[role="dialog"]')) return;
       if (e.key === 'f' || e.key === 'F') fit();
       if (e.key === '=' || e.key === '+') zoomIn();
       if (e.key === '-') zoomOut();
@@ -173,13 +135,7 @@ export default function CanvasRenderer({
     if (!svg) return;
     const { x: svgX, y: svgY } = svgCoords(svg, e.clientX, e.clientY);
     const factor = e.deltaY > 0 ? 1.1 : 0.9;
-    setViewBox((vb) => {
-      const nw = vb.w * factor;
-      const nh = vb.h * factor;
-      const nx = svgX - (svgX - vb.x) * (nw / vb.w);
-      const ny = svgY - (svgY - vb.y) * (nh / vb.h);
-      return { x: nx, y: ny, w: nw, h: nh };
-    });
+    setViewBox((vb) => zoomViewBox(vb, factor, svgX, svgY));
   }, []);
 
   // Canvas pointer down: start pan or add-element
@@ -236,13 +192,7 @@ export default function CanvasRenderer({
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
-        const scaleX = startViewBox.w / rect.width;
-        const scaleY = startViewBox.h / rect.height;
-        setViewBox({
-          ...startViewBox,
-          x: startViewBox.x - dx * scaleX,
-          y: startViewBox.y - dy * scaleY,
-        });
+        setViewBox(panViewBox(startViewBox, dx, dy, rect.width, rect.height));
         return;
       }
 
@@ -528,8 +478,11 @@ function DependencyLine({
 
   const x1 = toSvgX(from.evolution);
   const y1 = toSvgY(from.visibility);
-  const x2 = toSvgX(to.evolution);
-  const y2 = toSvgY(to.visibility);
+  // Stop at the target's edge so the arrowhead (A depends on B → points at B) stays visible
+  const { x: x2, y: y2 } = trimLineEnd(
+    x1, y1, toSvgX(to.evolution), toSvgY(to.visibility),
+    (to.kind === 'anchor' ? ANCHOR_HALF : ELEMENT_RADIUS) + 3
+  );
 
   return (
     <g>

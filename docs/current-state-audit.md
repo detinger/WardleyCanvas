@@ -174,9 +174,17 @@ No OWM parser or SVG/PDF export library is present. Phase 2 (IO-01) will need on
 
 ## Baseline Test Results
 
-No test suite is configured. Before any refactor gate (AUD-02), add at minimum:
-- Vitest (unit + integration) or Jest
-- Playwright or Cypress (E2E)
+_Original audit:_ no test suite was configured.
+
+_Update 2026-10-25 (AUD-02 complete):_
+
+| Suite | Command | Scope |
+| --- | --- | --- |
+| Vitest | `npm test` | domain commands/editing/migration/validation, editor reducer, OWM parser + round trip, import preview/commit, SVG export, viewport geometry, persistence, scenarios |
+| Playwright | `npm run test:e2e` | Phase 1 slice (create, connect, autosave, save/reopen, draft recovery, keyboard), drag/nudge/duplicate, keyboard dependencies, responsive 1440/1100/820/600/375, themes, import preview/cancel, hostile input, deterministic SVG/JSON/PNG export |
+
+The E2E suite starts its own dev server on port 9003 with `NEXT_DIST_DIR=.next-e2e`, so it can run beside `npm run dev`.
+Fixtures live in `tests/fixtures/` (`legacy-ecommerce.json`, `tea-shop.owm`).
 
 ---
 

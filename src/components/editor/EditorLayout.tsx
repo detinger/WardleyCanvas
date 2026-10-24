@@ -13,7 +13,7 @@ import EditorToolbar from './EditorToolbar';
 import CanvasRenderer from './CanvasRenderer';
 import MapInspector from './MapInspector';
 import SourceEditor from './SourceEditor';
-import { mergeParsedMap } from '@/parser/owm';
+import { commitImport } from '@/parser/import';
 import ExportDialog from './ExportDialog';
 import ImportDialog from './ImportDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,6 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
   const [editorMode, setEditorMode] = React.useState<EditorMode>('visual');
   const [showExport, setShowExport] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
-  const canvasSvgRef = React.useRef<SVGSVGElement | null>(null);
 
   // Callbacks for viewport control (passed down to CanvasRenderer)
   const fitRef = React.useRef<() => void>(() => {});
@@ -91,14 +90,14 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
   const handleElementMoved = React.useCallback(
     (id: Id, evolution: Normalized, visibility: Normalized) => {
       // Live preview during drag — update without pushing to undo
-      editor.updateElement(id, { evolution, visibility });
+      editor.previewMove(id, evolution, visibility);
     },
     [editor]
   );
 
   const handleElementMoveCommit = React.useCallback(
     (id: Id, evolution: Normalized, visibility: Normalized) => {
-      editor.updateElement(id, { evolution, visibility });
+      editor.commitMove(id, evolution, visibility);
     },
     [editor]
   );
@@ -124,12 +123,13 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
     toast({ title: 'Version saved', description: `Revision ${committed.revision} saved.` });
   }, [map, editor, toast]);
 
-  // Autosave on change
+  // Autosave on change (not on every pointer move of a drag in progress)
+  const dragging = state.previewBase !== null;
   React.useEffect(() => {
-    if (state.saveState === 'unsaved') {
+    if (state.saveState === 'unsaved' && !dragging) {
       saveMap(map);
     }
-  }, [map, state.saveState]);
+  }, [map, state.saveState, dragging]);
 
   return (
     <div
@@ -167,21 +167,10 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
       />
 
       {/* Canvas + Inspector (visual/split/source modes) */}
-      <div
-        style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}
-        className="editor-main"
-      >
+      <div className="editor-main">
         {/* Canvas pane — hidden in source-only mode */}
         {editorMode !== 'source' && (
-          <div
-            style={{
-              flex: 1,
-              overflow: 'hidden',
-              minWidth: 0,
-              minHeight: 0,
-              position: 'relative',
-            }}
-          >
+          <div className="editor-canvas">
             {map.elements.length === 0 && editorMode === 'visual' && (
               <CanvasEmptyState activeTool={editor.activeTool} onSetTool={editor.setTool} />
             )}
@@ -199,24 +188,13 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
               onFitRequested={(fn) => { fitRef.current = fn; }}
               onZoomInRequested={(fn) => { zoomInRef.current = fn; }}
               onZoomOutRequested={(fn) => { zoomOutRef.current = fn; }}
-              svgRefCallback={(el) => { canvasSvgRef.current = el; }}
             />
           </div>
         )}
 
         {/* Source pane — shown in split and source modes */}
         {editorMode !== 'visual' && (
-          <div
-            style={{
-              width: editorMode === 'split' ? 380 : undefined,
-              flex: editorMode === 'source' ? 1 : undefined,
-              flexShrink: 0,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              borderLeft: editorMode === 'split' ? '1px solid var(--border)' : 'none',
-            }}
-          >
+          <div className={editorMode === 'split' ? 'editor-source editor-source--split' : 'editor-source'}>
             <SourceEditor
               map={map}
               onMapChange={(updated) => editor.replaceMap(updated)}
@@ -234,28 +212,19 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
         )}
       </div>
 
-      {/* Responsive: inspector below canvas at ≤820px */}
-      <style>{`
-        @media (max-width: 820px) {
-          .editor-main {
-            flex-direction: column !important;
-          }
-        }
-      `}</style>
 
       {/* Dialogs */}
       {showExport && (
         <ExportDialog
           map={map}
-          svgRef={canvasSvgRef}
           onClose={() => setShowExport(false)}
         />
       )}
       {showImport && (
         <ImportDialog
-          currentMapId={map.id}
-          onImport={(imported) => {
-            editor.replaceMap(mergeParsedMap(map, imported));
+          currentMap={map}
+          onImport={(preview) => {
+            editor.replaceMap(commitImport(map, preview));
           }}
           onClose={() => setShowImport(false)}
         />

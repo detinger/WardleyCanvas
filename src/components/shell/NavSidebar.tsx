@@ -133,6 +133,7 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
   return (
     <aside
       aria-label="Main navigation"
+      className="nav-sidebar"
       style={{
         width: expanded ? 232 : 64,
         flexShrink: 0,
@@ -146,6 +147,7 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
     >
       {/* Brand row */}
       <div
+        className="nav-sidebar__brand"
         style={{
           height: 56,
           display: 'flex',
@@ -189,10 +191,11 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
 
       {/* Nav groups */}
       <nav
+        className="nav-sidebar__nav"
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 0' }}
       >
         {NAV_GROUPS.map((group) => (
-          <div key={group.groupLabel} style={{ marginBottom: 4 }}>
+          <div key={group.groupLabel} className="nav-sidebar__group" style={{ marginBottom: 4 }}>
             {expanded && (
               <div
                 className="text-nav-group"
@@ -220,7 +223,7 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
       </nav>
 
       {/* Bottom utilities */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0' }}>
+      <div className="nav-sidebar__utils" style={{ borderTop: '1px solid var(--border)', padding: '8px 0' }}>
         <UtilityButton
           icon={theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           label={theme === 'dark' ? 'Light theme' : 'Dark theme'}
@@ -281,16 +284,16 @@ function NavLink({
     return (
       <div style={style} title={expanded ? undefined : item.label}>
         <span style={{ flexShrink: 0 }}>{item.icon}</span>
-        {expanded && <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
+        {expanded && <span className="nav-label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
       </div>
     );
   }
 
   return (
-    <Link href={item.href} style={style} title={expanded ? undefined : item.label}>
+    <Link href={item.href} style={style} aria-label={item.label} aria-current={active ? 'page' : undefined} title={expanded ? undefined : item.label}>
       <span style={{ flexShrink: 0 }}>{item.icon}</span>
       {expanded && (
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span className="nav-label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {item.label}
         </span>
       )}
@@ -332,7 +335,7 @@ function UtilityButton({
   const content = (
     <>
       <span style={{ flexShrink: 0 }}>{icon}</span>
-      {expanded && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
+      {expanded && <span className="nav-label" style={{ whiteSpace: 'nowrap' }}>{label}</span>}
     </>
   );
 

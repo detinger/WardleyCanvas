@@ -1,6 +1,6 @@
 'use client';
 
-// EDT-01: 420px inspector panel with tabbed content.
+// EDT-01: Inspector panel with tabbed content (420px; responsive sizes in globals.css).
 // Shows map-level or element-level details depending on selection.
 
 import * as React from 'react';
@@ -8,6 +8,8 @@ import { AlertTriangle, AlertCircle, Info, Lightbulb, Trash2, ChevronDown, Chevr
 import { WardleyMap, MapElement, Dependency, Id, ComponentType, MapElementKind, Evidence, PatternAssessment, DoctrineAssessment, GameplayHypothesis, Confidence, generateId } from '@/domain/types';
 import { ValidationFinding, ValidationSeverity, validateMap, countBySeverity } from '@/domain/validation';
 import { useMapEditor } from '@/hooks/use-map-editor';
+import { describeDependency } from '@/domain/editing';
+import { sanitizeUrl } from '@/parser/owm';
 import { CLIMATE_CATALOG, CLIMATE_CATEGORIES } from '@/analysis/climate-catalog';
 import { DOCTRINE_CATALOG, DOCTRINE_PHASES } from '@/analysis/doctrine-catalog';
 import { GAMEPLAY_CATALOG, GAMEPLAY_CATEGORIES } from '@/analysis/gameplay-catalog';
@@ -56,15 +58,7 @@ export default function MapInspector({ map, selectedIds, editor }: MapInspectorP
     <div
       role="complementary"
       aria-label="Map inspector"
-      style={{
-        width: 420,
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--bg-elevated)',
-        borderLeft: '1px solid var(--border)',
-        overflow: 'hidden',
-      }}
+      className="editor-inspector"
     >
       {/* Tab bar */}
       <div
@@ -587,6 +581,7 @@ function ConnectionsPanel({
             />
           ))
         )}
+        <AddDependency map={map} element={element} editor={editor} />
       </Section>
 
       <Section label={`Used by (${incoming.length})`}>
@@ -605,6 +600,78 @@ function ConnectionsPanel({
           ))
         )}
       </Section>
+    </div>
+  );
+}
+
+/** Keyboard-friendly dependency creation that states the direction before committing. */
+function AddDependency({
+  map,
+  element,
+  editor,
+}: {
+  map: WardleyMap;
+  element: MapElement;
+  editor: ReturnType<typeof useMapEditor>;
+}) {
+  const [targetId, setTargetId] = React.useState('');
+  // Exclude itself and anything already connected in either direction
+  const connected = new Set(
+    map.dependencies
+      .filter((d) => d.fromId === element.id || d.toId === element.id)
+      .map((d) => (d.fromId === element.id ? d.toId : d.fromId))
+  );
+  const candidates = map.elements.filter((el) => el.id !== element.id && !connected.has(el.id));
+  const target = candidates.find((el) => el.id === targetId);
+
+  if (candidates.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+      <label htmlFor="add-dependency-target" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        Add dependency: {element.name} depends on…
+      </label>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <select
+          id="add-dependency-target"
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
+          style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+        >
+          <option value="">Choose a component</option>
+          {candidates.map((el) => (
+            <option key={el.id} value={el.id}>{el.name}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!target}
+          onClick={() => {
+            if (!target) return;
+            editor.createDependency(element.id, target.id);
+            setTargetId('');
+          }}
+          style={{
+            height: 34,
+            padding: '0 12px',
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text)',
+            cursor: target ? 'pointer' : 'not-allowed',
+            fontSize: 13,
+            fontWeight: 550,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Plus size={14} /> Add
+        </button>
+      </div>
+      <p aria-live="polite" style={{ fontSize: 12, color: 'var(--text-subtle)', margin: 0, minHeight: 16 }}>
+        {target ? `Will add: ${describeDependency(element.name, target.name)}.` : ''}
+      </p>
     </div>
   );
 }
@@ -937,8 +1004,8 @@ function EvidenceCard({ evidence: ev, onRemove }: { evidence: Evidence; onRemove
         <ConfidencePip confidence={ev.confidence} />
         {ev.sourceLabel && (
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {ev.sourceUrl ? (
-              <a href={ev.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            {ev.sourceUrl && sanitizeUrl(ev.sourceUrl) ? (
+              <a href={sanitizeUrl(ev.sourceUrl)!} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 3 }}>
                 {ev.sourceLabel} <ExternalLink size={10} />
               </a>
             ) : ev.sourceLabel}
