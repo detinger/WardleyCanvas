@@ -6,7 +6,7 @@
 
 import * as React from 'react';
 import { WardleyMap } from '@/domain/types';
-import { parseOWM, serializeOWM, OWMDiagnostic } from '@/parser/owm';
+import { parseOWM, serializeOWM, mergeParsedMap, OWMDiagnostic } from '@/parser/owm';
 import { AlertCircle, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface SourceEditorProps {
@@ -22,20 +22,25 @@ export default function SourceEditor({ map, onMapChange }: SourceEditorProps) {
   const [unsupported, setUnsupported] = React.useState<string[]>([]);
   const [parseState, setParseState] = React.useState<'clean' | 'error' | 'warning'>('clean');
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const externalUpdateRef = React.useRef(false);
+  // Serialization of the last map this editor emitted; used to tell our own
+  // round-trip apart from an external (visual/undo) change.
+  const emittedRef = React.useRef<string | null>(null);
 
-  // When the map changes externally (visual edit), regenerate source text
+  // When the map changes externally (visual edit, undo), regenerate source text.
+  // Skip our own edits so the user's text, comments and cursor are left alone.
   React.useEffect(() => {
-    externalUpdateRef.current = true;
-    setSource(serializeOWM(map));
+    const serialized = serializeOWM(map);
+    if (serialized === emittedRef.current) return;
+    emittedRef.current = null;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSource(serialized);
+    setDiagnostics([]);
+    setUnsupported([]);
+    setParseState('clean');
   }, [map]);
 
   const handleChange = React.useCallback(
     (text: string) => {
-      if (externalUpdateRef.current) {
-        externalUpdateRef.current = false;
-        return;
-      }
       setSource(text);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -47,14 +52,13 @@ export default function SourceEditor({ map, onMapChange }: SourceEditorProps) {
           // Keep current map — do not propagate invalid parse
         } else {
           setParseState(result.diagnostics.length > 0 ? 'warning' : 'clean');
-          // Merge metadata not representable in OWM (analysis, versions, etc.)
-          onMapChange({
-            ...result.map,
-            id: map.id,
-            createdAt: map.createdAt,
-            revision: map.revision,
-            analysis: map.analysis,
-          });
+          // Keep stable IDs and metadata not representable in OWM
+          const next = mergeParsedMap(map, result.map);
+          const serialized = serializeOWM(next);
+          // Comment/whitespace-only edits change nothing representable
+          if (serialized === serializeOWM(map)) return;
+          emittedRef.current = serialized;
+          onMapChange(next);
         }
       }, DEBOUNCE_MS);
     },

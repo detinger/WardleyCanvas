@@ -63,6 +63,7 @@ export interface EditorState {
 
 type Action =
   | { type: 'LOAD_MAP'; map: WardleyMap }
+  | { type: 'REPLACE_MAP'; map: WardleyMap }
   | { type: 'ADD_ELEMENT'; element: MapElement }
   | { type: 'UPDATE_ELEMENT'; id: Id; changes: Partial<MapElement> }
   | { type: 'REMOVE_ELEMENTS'; ids: Id[] }
@@ -105,6 +106,9 @@ function removeElementsFromMap(map: WardleyMap, ids: Id[]): WardleyMap {
       (dep) => !idSet.has(dep.fromId) && !idSet.has(dep.toId)
     ),
     evolutions: map.evolutions.filter((ev) => !idSet.has(ev.elementId)),
+    pipelines: map.pipelines
+      .filter((p) => !idSet.has(p.parentElementId))
+      .map((p) => ({ ...p, memberElementIds: p.memberElementIds.filter((id) => !idSet.has(id)) })),
   };
 }
 
@@ -124,6 +128,16 @@ function reducer(state: EditorState, action: Action): EditorState {
         saveState: 'clean',
         linkSourceId: null,
       };
+
+    // Undoable whole-document replacement (source edits, import)
+    case 'REPLACE_MAP': {
+      const ids = new Set(action.map.elements.map((e) => e.id));
+      return {
+        ...withUpdatedMap(state, action.map),
+        selectedIds: state.selectedIds.filter((id) => ids.has(id)),
+        linkSourceId: null,
+      };
+    }
 
     case 'ADD_ELEMENT':
       return withUpdatedMap(state, {
@@ -271,6 +285,10 @@ export function useMapEditor(initialMap: WardleyMap) {
 
   const loadMap = useCallback((map: WardleyMap) => {
     dispatch({ type: 'LOAD_MAP', map });
+  }, []);
+
+  const replaceMap = useCallback((map: WardleyMap) => {
+    dispatch({ type: 'REPLACE_MAP', map });
   }, []);
 
   const addElement = useCallback(
@@ -448,6 +466,7 @@ export function useMapEditor(initialMap: WardleyMap) {
     state,
     // document actions
     loadMap,
+    replaceMap,
     addElement,
     updateElement,
     moveElement,

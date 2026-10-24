@@ -588,3 +588,93 @@ export function roundTripOWM(map: WardleyMap): OWMParseResult {
   const owm = serializeOWM(map);
   return parseOWM(owm, map.id);
 }
+
+// ---------------------------------------------------------------------------
+// Reconcile a freshly parsed map with the map it replaces (IO-02)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parsing generates new IDs and knows nothing about fields OWM cannot express.
+ * Match parsed elements to the previous map by name (in order, so duplicate
+ * names pair up positionally), keep their stable IDs, and carry over app-only
+ * metadata so a source edit never wipes descriptions, evidence or analysis links.
+ */
+export function mergeParsedMap(previous: WardleyMap, parsed: WardleyMap): WardleyMap {
+  const oldByName = new Map<string, MapElement[]>();
+  for (const el of previous.elements) {
+    const queue = oldByName.get(el.name) ?? [];
+    queue.push(el);
+    oldByName.set(el.name, queue);
+  }
+
+  const idMap = new Map<Id, Id>();
+  const elements = parsed.elements.map((el) => {
+    const old = oldByName.get(el.name)?.shift();
+    if (!old) return el;
+    idMap.set(el.id, old.id);
+    // Values present in the parsed map (e.g. a native JSON import) win
+    const description = el.description ?? old.description;
+    const tags = el.tags ?? old.tags;
+    const evidenceIds = el.evidenceIds ?? old.evidenceIds;
+    const merged: MapElement = {
+      ...el,
+      id: old.id,
+      componentType: el.componentType !== 'unspecified' ? el.componentType : old.componentType,
+      ...(description !== undefined ? { description } : {}),
+      ...(tags ? { tags } : {}),
+      ...(evidenceIds ? { evidenceIds } : {}),
+    };
+    if (old.submapRef?.mapId) merged.submapRef = { ...el.submapRef, mapId: old.submapRef.mapId };
+    return merged;
+  });
+  const remap = (id: Id) => idMap.get(id) ?? id;
+
+  const dependencies = parsed.dependencies.map((dep) => {
+    const fromId = remap(dep.fromId);
+    const toId = remap(dep.toId);
+    const old = previous.dependencies.find(
+      (d) => d.fromId === fromId && d.toId === toId && d.kind === dep.kind
+    );
+    return {
+      ...dep,
+      id: old?.id ?? dep.id,
+      fromId,
+      toId,
+      ...(old?.flowDirection ? { flowDirection: old.flowDirection } : {}),
+    };
+  });
+
+  const evolutions = parsed.evolutions.map((ev) => {
+    const elementId = remap(ev.elementId);
+    const old = previous.evolutions.find((e) => e.elementId === elementId);
+    return {
+      ...ev,
+      id: old?.id ?? ev.id,
+      elementId,
+      ...(old?.rationale ? { rationale: old.rationale } : {}),
+      ...(old?.sourcing ? { sourcing: old.sourcing } : {}),
+    };
+  });
+
+  const pipelines = parsed.pipelines.map((pip) => {
+    const parentElementId = remap(pip.parentElementId);
+    const old = previous.pipelines.find((p) => p.parentElementId === parentElementId);
+    return { ...pip, id: old?.id ?? pip.id, parentElementId, memberElementIds: pip.memberElementIds.map(remap) };
+  });
+
+  const annotations = parsed.annotations.map((ann) => {
+    const old = previous.annotations.find((a) => a.number === ann.number && a.text === ann.text);
+    return old ? { ...ann, id: old.id } : ann;
+  });
+
+  return {
+    ...previous,
+    title: parsed.title,
+    purpose: parsed.purpose,
+    elements,
+    dependencies,
+    evolutions,
+    pipelines,
+    annotations,
+  };
+}

@@ -132,3 +132,40 @@ describe('OWM round trip', () => {
     expect(serializeOWM(map)).toBe(serializeOWM(structuredClone(map)));
   });
 });
+
+describe('mergeParsedMap', () => {
+  it('keeps stable ids and app-only metadata across a source edit', async () => {
+    const { mergeParsedMap } = await import('../owm');
+    const previous = sampleMap();
+    previous.elements[2].description = 'keep me';
+    previous.elements[2].componentType = 'data';
+    previous.elements[2].evidenceIds = ['ev1'];
+    previous.evolutions = [{ id: 'evo', elementId: 'a', targetEvolution: 0.8, rationale: 'why' }];
+    previous.analysis.climate = [{ id: 'c', catalogId: 'x', appliesToIds: ['a'], state: 'applies', rationale: '', evidenceIds: [], confidence: 'low' }];
+
+    // Edit the source: move A, add C
+    const edited = serializeOWM(previous).replace('component A [0.50, 0.60]', 'component A [0.40, 0.70]') + 'component C [0.10, 0.10]\nB->C\n';
+    const merged = mergeParsedMap(previous, parseOWM(edited).map);
+
+    const a = merged.elements.find((e) => e.name === 'A')!;
+    expect(a).toMatchObject({ id: 'a', description: 'keep me', componentType: 'data', evidenceIds: ['ev1'], visibility: 0.4, evolution: 0.7 });
+    expect(merged.elements.map((e) => e.id).slice(0, 4)).toEqual(['user', 'need', 'a', 'b']);
+    expect(merged.dependencies.slice(0, 3).map((d) => d.id)).toEqual(['d1', 'd2', 'd3']);
+    expect(merged.evolutions[0]).toMatchObject({ id: 'evo', elementId: 'a', rationale: 'why' });
+    expect(merged.analysis).toBe(previous.analysis);
+    expect(merged.id).toBe(previous.id);
+    expect(hasErrors(validateMap(merged))).toBe(false);
+  });
+
+  it('parsed values win over previous metadata', async () => {
+    const { mergeParsedMap } = await import('../owm');
+    const previous = sampleMap();
+    previous.elements[2].description = 'old';
+    const incoming = structuredClone(previous);
+    incoming.elements[2] = { ...incoming.elements[2], id: 'new-id', description: 'new', componentType: 'practice' };
+    incoming.dependencies = incoming.dependencies.map((d) => ({ ...d, toId: d.toId === 'a' ? 'new-id' : d.toId }));
+    const merged = mergeParsedMap(previous, incoming);
+    expect(merged.elements[2]).toMatchObject({ id: 'a', description: 'new', componentType: 'practice' });
+    expect(merged.dependencies.find((d) => d.toId === 'a')?.id).toBe('d2');
+  });
+});

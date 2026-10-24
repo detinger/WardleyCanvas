@@ -13,6 +13,7 @@ import EditorToolbar from './EditorToolbar';
 import CanvasRenderer from './CanvasRenderer';
 import MapInspector from './MapInspector';
 import SourceEditor from './SourceEditor';
+import { mergeParsedMap } from '@/parser/owm';
 import ExportDialog from './ExportDialog';
 import ImportDialog from './ImportDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -218,7 +219,7 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
           >
             <SourceEditor
               map={map}
-              onMapChange={(updated) => editor.loadMap(updated)}
+              onMapChange={(updated) => editor.replaceMap(updated)}
             />
           </div>
         )}
@@ -254,7 +255,7 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
         <ImportDialog
           currentMapId={map.id}
           onImport={(imported) => {
-            editor.loadMap({ ...imported, analysis: map.analysis });
+            editor.replaceMap(mergeParsedMap(map, imported));
           }}
           onClose={() => setShowImport(false)}
         />

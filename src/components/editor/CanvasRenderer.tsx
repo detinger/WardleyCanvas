@@ -306,7 +306,7 @@ export default function CanvasRenderer({
   );
 
   const handleElementClick = React.useCallback(
-    (e: React.MouseEvent, el: MapElement) => {
+    (e: React.MouseEvent | React.KeyboardEvent, el: MapElement) => {
       e.stopPropagation();
 
       if (activeTool === 'add-dependency') {
@@ -571,7 +571,7 @@ function MapElementShape({
   isLinkSource: boolean;
   activeTool: ActiveTool;
   onPointerDown: (e: React.PointerEvent) => void;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (e: React.MouseEvent | React.KeyboardEvent) => void;
 }) {
   const cx = toSvgX(element.evolution);
   const cy = toSvgY(element.visibility);
@@ -602,7 +602,15 @@ function MapElementShape({
       style={{ cursor }}
       onPointerDown={onPointerDown}
       onClick={onClick}
+      onKeyDown={(e) => {
+        // Keyboard parity with click: select, or pick a dependency endpoint
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(e);
+        }
+      }}
       aria-label={element.name}
+      aria-pressed={isSelected}
       role="button"
       tabIndex={0}
     >
