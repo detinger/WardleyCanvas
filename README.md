@@ -7,7 +7,7 @@ Wardley Maps Studio is a local-first workspace for learning, editing, analyzing,
 - SVG visual editor with normalized coordinates, pan/zoom/fit, multi-select, keyboard editing, undo/redo, and an accessible map outline.
 - Synchronized visual, source, and split editing for the supported OnlineWardleyMaps syntax.
 - Draft recovery, immutable committed versions, migration of legacy browser data, and full local-data backup/deletion controls.
-- Native JSON, OWM, SVG, and PNG import/export with diagnostics and loss reporting.
+- Native JSON and OWM import/export, plus SVG, PNG, and printable PDF export with diagnostics and loss reporting.
 - Structural validation and non-blocking modeling guidance.
 - Versioned learning modules, guided challenges, progressive hints, rubrics, and durable progress.
 - Evidence-backed climate, doctrine, and gameplay assessments without composite strategy scores.
@@ -52,6 +52,8 @@ npm test
 npm run typecheck
 npm run build
 npm run test:e2e
+npm run test:performance
+npm run test:visual
 ```
 
 The Playwright npm lifecycle builds and starts an isolated production server on port 9003 using `.next-e2e`, so it can run alongside `npm run dev`.
@@ -64,7 +66,7 @@ The Playwright npm lifecycle builds and starts an isolated production server on 
 - Browser-local persistence with sequential legacy migration and recoverable backups
 - Vitest for domain/integration tests and a Chromium/WebKit/Firefox Playwright + axe-core release matrix
 
-The implementation contract is [PLAN.md](PLAN.md). Release evidence and decisions live in `docs/`, including the [accessibility audit](docs/accessibility-audit.md), [browser support statement](docs/browser-support.md), [content/licence review](docs/content-license-review.md), [collaboration ADR](docs/adr/0001-collaboration-readiness.md), and [telemetry ADR](docs/adr/0002-privacy-safe-telemetry.md).
+The implementation contract is [PLAN.md](PLAN.md). Release evidence and decisions live in `docs/`, including the [accessibility audit](docs/accessibility-audit.md), [browser support statement](docs/browser-support.md), [performance report](docs/performance-report.md), [visual-regression matrix](docs/visual-regression.md), [content/licence review](docs/content-license-review.md), [collaboration ADR](docs/adr/0001-collaboration-readiness.md), and [telemetry ADR](docs/adr/0002-privacy-safe-telemetry.md).
 
 ## Attribution and licences
 

@@ -13,7 +13,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "pretest:e2e": "NEXT_DIST_DIR=.next-e2e next build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "pretest:performance": "NEXT_DIST_DIR=.next-e2e next build",
+    "test:performance": "playwright test --project=performance --no-deps --workers=1",
+    "pretest:visual": "NEXT_DIST_DIR=.next-e2e next build",
+    "test:visual": "playwright test --project=visual --no-deps --workers=1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

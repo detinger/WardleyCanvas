@@ -1,6 +1,6 @@
 'use client';
 
-// IO-04: Export dialog — native JSON, OWM, SVG, PNG and analysis downloads.
+// IO-04: Export dialog — native JSON, OWM, SVG, PNG, PDF and analysis downloads.
 // SVG/PNG are rendered from the map data (renderer/svg-export), not copied from
 // the screen, so they are deterministic and independent of zoom and selection.
 
@@ -9,8 +9,9 @@ import { WardleyMap } from '@/domain/types';
 import { serializeOWM } from '@/parser/owm';
 import { owmLossReport } from '@/parser/import';
 import { renderMapSVG, exportSize, ExportTheme } from '@/renderer/svg-export';
+import { renderMapPdf } from '@/renderer/pdf-export';
 import DialogOverlay from './DialogOverlay';
-import { Download, X, FileJson, FileCode2, Image, BarChart2 } from 'lucide-react';
+import { Download, X, FileJson, FileCode2, FileText, Image, BarChart2 } from 'lucide-react';
 import { summarizeAnalysis, analysisToCsv, catalogProvenance } from '@/analysis/summary';
 
 interface ExportDialogProps {
@@ -23,6 +24,7 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
   const [theme, setTheme] = React.useState<ExportTheme>('light');
   const [background, setBackground] = React.useState(true);
   const [pngScale, setPngScale] = React.useState(2);
+  const [pdfDetails, setPdfDetails] = React.useState(true);
   const owmLoss = React.useMemo(() => owmLossReport(map), [map]);
 
   const exportJSON = React.useCallback(() => {
@@ -85,6 +87,16 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
     img.onerror = () => { URL.revokeObjectURL(url); setExporting(null); };
     img.src = url;
   }, [map, theme, background, pngScale]);
+
+  const exportPDF = React.useCallback(async () => {
+    setExporting('pdf');
+    try {
+      const pdf = await renderMapPdf(map, { theme, includeDetails: pdfDetails });
+      downloadBlob(pdf, `${slug(map.title)}.pdf`);
+    } finally {
+      setExporting(null);
+    }
+  }, [map, theme, pdfDetails]);
 
   const { width, height } = exportSize();
 
@@ -153,7 +165,7 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
 
           {/* Image options */}
           <fieldset style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', margin: '4px 0', display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 13, color: 'var(--text)' }}>
-            <legend style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 4px' }}>Image options (SVG and PNG)</legend>
+            <legend style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 4px' }}>Image and PDF options</legend>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               Theme
               <select value={theme} onChange={(e) => setTheme(e.target.value as ExportTheme)} style={selectStyle}>
@@ -163,7 +175,7 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={background} onChange={(e) => setBackground(e.target.checked)} />
-              Background
+              SVG/PNG background
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               PNG scale
@@ -172,6 +184,10 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
                 <option value={2}>2× ({width * 2}×{height * 2})</option>
                 <option value={3}>3× ({width * 3}×{height * 3})</option>
               </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={pdfDetails} onChange={(e) => setPdfDetails(e.target.checked)} />
+              PDF details and analysis
             </label>
           </fieldset>
 
@@ -190,6 +206,14 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
             ext=".png"
             busy={exporting === 'png'}
             onClick={exportPNG}
+          />
+          <ExportOption
+            icon={<FileText size={20} />}
+            title="PDF"
+            description="Printable map with legend, context, analysis, assumptions and attribution"
+            ext=".pdf"
+            busy={exporting === 'pdf'}
+            onClick={exportPDF}
           />
           <ExportOption
             icon={<BarChart2 size={20} />}
@@ -219,7 +243,7 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
           }}
         >
           Files are generated in your browser; nothing is uploaded. Exports are identical for an unchanged map
-          (the analysis file adds a generated timestamp). Images show the whole map without selection highlights.
+          except generated timestamps in PDF and analysis JSON. Images and PDF show the whole map without selection highlights.
         </div>
       </div>
     </DialogOverlay>

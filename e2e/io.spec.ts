@@ -1,8 +1,8 @@
 import { test, expect, Page, Download } from './fixtures';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { mapWith, node, currentSource, TEA_SHOP } from './helpers';
 
-// Phase 2 gates: IO-03 atomic import preview, IO-04 deterministic exports,
+// Phase 2 gates: IO-03 atomic import preview, IO-04 deterministic/raster/PDF exports,
 // hostile input handling (E2E scenario 7).
 
 const importDialog = (page: Page) => page.getByRole('dialog', { name: 'Import map' });
@@ -143,6 +143,34 @@ test('PNG export honours the chosen scale', async ({ page }) => {
   // IHDR width/height are big-endian uint32 at offsets 16 and 20
   expect(png.body.readUInt32BE(16)).toBe(1110);
   expect(png.body.readUInt32BE(20)).toBe(726);
+});
+
+test('PDF export is a printable multi-page document generated in the browser', async ({ page }, testInfo) => {
+  await mapWith(page);
+  await page.getByRole('button', { name: 'Export map' }).click();
+  const [pdf] = await Promise.all([
+    page.waitForEvent('download'),
+    exportDialog(page).getByRole('button', { name: /^PDF/ }).click(),
+  ]);
+  expect(pdf.suggestedFilename()).toBe('tea-shop.pdf');
+  const body = await readFile((await pdf.path())!);
+  const structure = body.toString('latin1');
+  expect(body.subarray(0, 8).toString()).toBe('%PDF-1.4');
+  expect(structure.match(/\/Type \/Page\b/g)?.length).toBeGreaterThanOrEqual(2);
+  expect(structure).toContain('/Filter /DCTDecode');
+  expect(structure).toMatch(/startxref\n\d+\n%%EOF/);
+
+  // Keep a test artifact so the PDF release check can run pdfinfo/Poppler and
+  // inspect the rendered pages, not just its byte structure.
+  await writeFile(testInfo.outputPath('tea-shop.pdf'), body);
+
+  await exportDialog(page).getByLabel('PDF details and analysis').uncheck();
+  const [mapOnly] = await Promise.all([
+    page.waitForEvent('download'),
+    exportDialog(page).getByRole('button', { name: /^PDF/ }).click(),
+  ]);
+  const mapOnlyStructure = (await readFile((await mapOnly.path())!)).toString('latin1');
+  expect(mapOnlyStructure.match(/\/Type \/Page\b/g)).toHaveLength(1);
 });
 
 test('export dialog reports what OWM leaves out and traps focus', async ({ page }) => {
