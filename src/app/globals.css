@@ -617,8 +617,11 @@ next-dev-indicator {
   }
 }
 
-/* Dark mode: active nav link uses --primary-strong (lighter) for WCAG AA contrast on --primary-soft */
-[data-theme="dark"] .nav-sidebar a[aria-current="page"] {
+/* Dark mode nav label contrast — set on the span directly so Linux WebKit inherits correctly */
+[data-theme="dark"] .nav-sidebar .nav-label {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] .nav-sidebar a[aria-current="page"] .nav-label {
   color: var(--primary-strong) !important;
 }
 
