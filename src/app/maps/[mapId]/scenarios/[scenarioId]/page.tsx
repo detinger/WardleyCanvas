@@ -12,7 +12,8 @@ import {
   ArrowLeft, Plus, AlertTriangle, AlertCircle, Info,
   CheckCircle, Trash2, ChevronDown, ChevronRight, Download, X,
 } from 'lucide-react';
-import { loadMap } from '@/hooks/use-persistence';
+import { loadMap, listVersions } from '@/hooks/use-persistence';
+import { useHydrated } from '@/hooks/use-hydrated';
 import {
   loadScenario,
   saveScenario,
@@ -20,7 +21,12 @@ import {
   summarizeChange,
   createDecisionRecord,
   listDecisions,
+  listScenarios,
+  resolveBaseline,
+  applyScenarioChanges,
 } from '@/hooks/use-scenarios';
+import { renderMapSVG } from '@/renderer/svg-export';
+import { buildDecisionPacket } from '@/analysis/decision-packet';
 import { runScenarioRules, allFindings, SCENARIO_RULES } from '@/analysis/scenario-rules';
 import {
   Scenario, ScenarioAssumption, ScenarioConsequence, ScenarioChange,
@@ -51,16 +57,28 @@ export default function ScenarioPage({ params }: Props) {
     });
   }, []);
 
+  // SIM-01: compare against the immutable baseline, never the live map
+  const resolved = React.useMemo(
+    () => (map && scenario ? resolveBaseline(scenario, map, listVersions(mapId)) : null),
+    [map, scenario, mapId]
+  );
+  const baseline = resolved?.map ?? null;
+
   const ruleResults = React.useMemo(() => {
-    if (!map || !scenario) return [];
-    return runScenarioRules(map, scenario.changes, disabledRules);
-  }, [map, scenario?.changes, disabledRules]);
+    if (!baseline || !scenario) return [];
+    return runScenarioRules(baseline, scenario.changes, disabledRules);
+  }, [baseline, scenario?.changes, disabledRules]);
 
   const findings = allFindings(ruleResults);
   const errorCount = findings.filter((f) => f.severity === 'error').length;
   const warnCount = findings.filter((f) => f.severity === 'warning').length;
 
-  if (!map || !scenario) {
+  const hydrated = useHydrated();
+  if (!hydrated) {
+    return <main id="main-content" style={{ flex: 1 }} aria-busy="true" />;
+  }
+
+  if (!map || !scenario || !baseline || !resolved) {
     return (
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Scenario or map not found.</p>
@@ -84,6 +102,7 @@ export default function ScenarioPage({ params }: Props) {
       baselineRevision: scenario.baselineRevision,
       scenario,
       ruleFindings: findings,
+      baseline,
       decisions: listDecisions(mapId).filter((d) => d.selectedScenarioId === scenarioId || d.rejectedScenarioIds.includes(scenarioId)),
       notice: 'Results shown are conditional consequences of explicit assumptions — not predictions of future states.',
     };
@@ -113,9 +132,9 @@ export default function ScenarioPage({ params }: Props) {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left panel — 380px */}
-        <div style={{ width: 380, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="scenario-layout">
+        {/* Left panel — 380px configuration (Section 4.5) */}
+        <div className="scenario-config">
           {/* Sub-tabs */}
           <div role="tablist" style={{ display: 'flex', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
             {tabs.map((t) => (
@@ -127,7 +146,7 @@ export default function ScenarioPage({ params }: Props) {
                 style={{
                   height: 38,
                   padding: '0 10px',
-                  border: 'none',
+                  borderTop: 'none', borderLeft: 'none', borderRight: 'none',
                   background: 'none',
                   cursor: 'pointer',
                   fontSize: 12,
@@ -151,7 +170,7 @@ export default function ScenarioPage({ params }: Props) {
           {/* Panel content */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
             {activeTab === 'changes' && (
-              <ChangesPanel map={map} scenario={scenario} onUpdate={updateScenario} />
+              <ChangesPanel map={baseline} scenario={scenario} onUpdate={updateScenario} />
             )}
             {activeTab === 'assumptions' && (
               <AssumptionsPanel scenario={scenario} onUpdate={updateScenario} />
@@ -169,14 +188,14 @@ export default function ScenarioPage({ params }: Props) {
               }} />
             )}
             {activeTab === 'decision' && (
-              <DecisionPanel mapId={mapId} scenarioId={scenarioId} baselineRevision={scenario.baselineRevision} />
+              <DecisionPanel mapId={mapId} scenario={scenario} baseline={baseline} findings={findings} />
             )}
           </div>
         </div>
 
         {/* Right panel — delta overview */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-          <DeltaOverview map={map} scenario={scenario} findings={findings} />
+        <div className="scenario-results">
+          <DeltaOverview map={baseline} baselineSource={resolved.source} scenario={scenario} findings={findings} />
         </div>
       </div>
     </main>
@@ -265,8 +284,8 @@ function ChangesPanel({
       ) : (
         <div style={{ padding: 12, borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div>
-            <label style={labelStyle}>Change type</label>
-            <select value={changeKind} onChange={(e) => setChangeKind(e.target.value as typeof changeKind)} style={inputStyle}>
+            <label htmlFor="sc-change-type" style={labelStyle}>Change type</label>
+            <select id="sc-change-type" value={changeKind} onChange={(e) => setChangeKind(e.target.value as typeof changeKind)} style={inputStyle}>
               <option value="move-evolution">Move evolution</option>
               <option value="move-visibility">Move visibility</option>
               <option value="remove-element">Remove element</option>
@@ -276,8 +295,8 @@ function ChangesPanel({
 
           {changeKind !== 'add-element' && (
             <div>
-              <label style={labelStyle}>Element</label>
-              <select value={elementId} onChange={(e) => setElementId(e.target.value)} style={inputStyle}>
+              <label htmlFor="sc-element" style={labelStyle}>Element</label>
+              <select id="sc-element" value={elementId} onChange={(e) => setElementId(e.target.value)} style={inputStyle}>
                 <option value="">— select —</option>
                 {map.elements.map((e) => (
                   <option key={e.id} value={e.id}>{e.name} ({e.kind})</option>
@@ -288,33 +307,33 @@ function ChangesPanel({
 
           {(changeKind === 'move-evolution' || changeKind === 'move-visibility') && (
             <div>
-              <label style={labelStyle}>Target value (0–1)</label>
-              <input type="number" min={0} max={1} step={0.01} value={targetValue} onChange={(e) => setTargetValue(e.target.value)} style={inputStyle} />
+              <label htmlFor="sc-target-value-0-1" style={labelStyle}>Target value (0–1)</label>
+              <input id="sc-target-value-0-1" type="number" min={0} max={1} step={0.01} value={targetValue} onChange={(e) => setTargetValue(e.target.value)} style={inputStyle} />
             </div>
           )}
 
           {changeKind === 'add-element' && (
             <>
               <div>
-                <label style={labelStyle}>Element name</label>
-                <input value={newElName} onChange={(e) => setNewElName(e.target.value)} style={inputStyle} />
+                <label htmlFor="sc-element-name" style={labelStyle}>Element name</label>
+                <input id="sc-element-name" value={newElName} onChange={(e) => setNewElName(e.target.value)} style={inputStyle} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <label style={labelStyle}>Evolution</label>
-                  <input type="number" min={0} max={1} step={0.01} value={newElEv} onChange={(e) => setNewElEv(e.target.value)} style={inputStyle} />
+                  <label htmlFor="sc-evolution" style={labelStyle}>Evolution</label>
+                  <input id="sc-evolution" type="number" min={0} max={1} step={0.01} value={newElEv} onChange={(e) => setNewElEv(e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Visibility</label>
-                  <input type="number" min={0} max={1} step={0.01} value={newElVis} onChange={(e) => setNewElVis(e.target.value)} style={inputStyle} />
+                  <label htmlFor="sc-visibility" style={labelStyle}>Visibility</label>
+                  <input id="sc-visibility" type="number" min={0} max={1} step={0.01} value={newElVis} onChange={(e) => setNewElVis(e.target.value)} style={inputStyle} />
                 </div>
               </div>
             </>
           )}
 
           <div>
-            <label style={labelStyle}>Rationale *</label>
-            <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} rows={2} placeholder="Why is this change part of the scenario?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
+            <label htmlFor="sc-rationale" style={labelStyle}>Rationale *</label>
+            <textarea id="sc-rationale" value={rationale} onChange={(e) => setRationale(e.target.value)} rows={2} placeholder="Why is this change part of the scenario?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
           </div>
 
           <div style={{ display: 'flex', gap: 6 }}>
@@ -384,21 +403,21 @@ function AssumptionsPanel({ scenario, onUpdate }: { scenario: Scenario; onUpdate
       ) : (
         <div style={{ padding: 12, borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div>
-            <label style={labelStyle}>Assumption *</label>
-            <textarea value={statement} onChange={(e) => setStatement(e.target.value)} rows={2} placeholder="E.g. Competitor will release an open-source CRM within 18 months" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
+            <label htmlFor="sc-assumption" style={labelStyle}>Assumption *</label>
+            <textarea id="sc-assumption" value={statement} onChange={(e) => setStatement(e.target.value)} rows={2} placeholder="E.g. Competitor will release an open-source CRM within 18 months" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <label style={labelStyle}>Confidence</label>
-              <select value={confidence} onChange={(e) => setConfidence(e.target.value as Confidence)} style={inputStyle}>
+              <label htmlFor="sc-confidence" style={labelStyle}>Confidence</label>
+              <select id="sc-confidence" value={confidence} onChange={(e) => setConfidence(e.target.value as Confidence)} style={inputStyle}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Invalidation signal</label>
-              <input value={signal} onChange={(e) => setSignal(e.target.value)} placeholder="What would disprove this?" style={inputStyle} />
+              <label htmlFor="sc-invalidation-signal" style={labelStyle}>Invalidation signal</label>
+              <input id="sc-invalidation-signal" value={signal} onChange={(e) => setSignal(e.target.value)} placeholder="What would disprove this?" style={inputStyle} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -471,13 +490,13 @@ function ConsequencesPanel({ scenario, onUpdate }: { scenario: Scenario; onUpdat
       ) : (
         <div style={{ padding: 12, borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div>
-            <label style={labelStyle}>Description *</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What conditional outcome might follow if the assumptions hold?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
+            <label htmlFor="sc-description" style={labelStyle}>Description *</label>
+            <textarea id="sc-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What conditional outcome might follow if the assumptions hold?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             <div>
-              <label style={labelStyle}>Direction</label>
-              <select value={direction} onChange={(e) => setDirection(e.target.value as typeof direction)} style={inputStyle}>
+              <label htmlFor="sc-direction" style={labelStyle}>Direction</label>
+              <select id="sc-direction" value={direction} onChange={(e) => setDirection(e.target.value as typeof direction)} style={inputStyle}>
                 <option value="improves">Improves</option>
                 <option value="worsens">Worsens</option>
                 <option value="mixed">Mixed</option>
@@ -485,8 +504,8 @@ function ConsequencesPanel({ scenario, onUpdate }: { scenario: Scenario; onUpdat
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Magnitude</label>
-              <select value={magnitude} onChange={(e) => setMagnitude(e.target.value as typeof magnitude)} style={inputStyle}>
+              <label htmlFor="sc-magnitude" style={labelStyle}>Magnitude</label>
+              <select id="sc-magnitude" value={magnitude} onChange={(e) => setMagnitude(e.target.value as typeof magnitude)} style={inputStyle}>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
@@ -494,8 +513,8 @@ function ConsequencesPanel({ scenario, onUpdate }: { scenario: Scenario; onUpdat
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Confidence</label>
-              <select value={confidence} onChange={(e) => setConfidence(e.target.value as Confidence)} style={inputStyle}>
+              <label htmlFor="sc-confidence-2" style={labelStyle}>Confidence</label>
+              <select id="sc-confidence-2" value={confidence} onChange={(e) => setConfidence(e.target.value as Confidence)} style={inputStyle}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -503,8 +522,8 @@ function ConsequencesPanel({ scenario, onUpdate }: { scenario: Scenario; onUpdat
             </div>
           </div>
           <div>
-            <label style={labelStyle}>Uncertainty notes</label>
-            <input value={uncertainty} onChange={(e) => setUncertainty(e.target.value)} placeholder="What would change this outcome?" style={inputStyle} />
+            <label htmlFor="sc-uncertainty-notes" style={labelStyle}>Uncertainty notes</label>
+            <input id="sc-uncertainty-notes" value={uncertainty} onChange={(e) => setUncertainty(e.target.value)} placeholder="What would change this outcome?" style={inputStyle} />
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setShowForm(false)} style={secondaryBtn}>Cancel</button>
@@ -575,92 +594,164 @@ function RulesPanel({
 
 function DecisionPanel({
   mapId,
-  scenarioId,
-  baselineRevision,
+  scenario,
+  baseline,
+  findings,
 }: {
   mapId: string;
-  scenarioId: string;
-  baselineRevision: number;
+  scenario: Scenario;
+  baseline: WardleyMap;
+  findings: ReturnType<typeof allFindings>;
 }) {
   const [decisions, setDecisions] = React.useState(() => listDecisions(mapId));
+  const otherScenarios = React.useMemo(() => listScenarios(mapId).filter((s) => s.id !== scenario.id), [mapId, scenario.id]);
   const [showForm, setShowForm] = React.useState(false);
   const [rationale, setRationale] = React.useState('');
   const [owner, setOwner] = React.useState('');
   const [reviewAt, setReviewAt] = React.useState('');
-  const [expectedSignal, setExpectedSignal] = React.useState('');
-  const [stopCondition, setStopCondition] = React.useState('');
+  const [expectedSignals, setExpectedSignals] = React.useState('');
+  const [stopConditions, setStopConditions] = React.useState('');
+  const [rejected, setRejected] = React.useState<string[]>([]);
+  const [supersedesId, setSupersedesId] = React.useState('');
+
+  const thisDecisions = decisions.filter((d) => d.selectedScenarioId === scenario.id);
+  const supersededIds = new Set(decisions.map((d) => d.supersedesId).filter(Boolean));
+  const lines = (text: string) => text.split('\n').map((x) => x.trim()).filter(Boolean);
 
   const handleCreate = () => {
     if (!rationale.trim()) return;
     const record = createDecisionRecord({
       baselineMapId: mapId,
-      baselineRevision,
-      selectedScenarioId: scenarioId,
-      rejectedScenarioIds: [],
+      baselineRevision: scenario.baselineRevision,
+      selectedScenarioId: scenario.id,
+      rejectedScenarioIds: rejected,
       rationale: rationale.trim(),
       owner: owner.trim() || undefined,
       decidedAt: new Date().toISOString(),
       reviewAt: reviewAt || undefined,
-      expectedSignals: expectedSignal.trim() ? [expectedSignal.trim()] : [],
-      stopConditions: stopCondition.trim() ? [stopCondition.trim()] : [],
+      expectedSignals: lines(expectedSignals),
+      stopConditions: lines(stopConditions),
+      ...(supersedesId ? { supersedesId } : {}),
     });
     setDecisions((prev) => [...prev, record]);
-    setRationale(''); setOwner(''); setReviewAt(''); setExpectedSignal(''); setStopCondition('');
+    setRationale(''); setOwner(''); setReviewAt(''); setExpectedSignals(''); setStopConditions(''); setRejected([]); setSupersedesId('');
     setShowForm(false);
   };
 
-  const thisDecisions = decisions.filter((d) => d.selectedScenarioId === scenarioId);
+  const exportPacket = () => {
+    const names: Record<string, string> = Object.fromEntries(listScenarios(mapId).map((s) => [s.id, s.name]));
+    const md = buildDecisionPacket({
+      baseline,
+      scenario,
+      findings,
+      decisions: thisDecisions,
+      scenarioNames: names,
+      generatedAt: new Date().toISOString().slice(0, 10),
+    });
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+    a.href = url;
+    a.download = `${scenario.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'scenario'}-decision-packet.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-        Decision records are immutable. A correction creates a new superseding record.
+        Decision records are immutable. To change a decision, record a new one that supersedes it.
       </p>
       {thisDecisions.map((d) => (
-        <div key={d.id} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--success)', background: 'var(--success-soft)' }}>
+        <article
+          key={d.id}
+          aria-label={`Decision of ${new Date(d.decidedAt).toLocaleDateString()}`}
+          style={{ padding: 10, borderRadius: 8, border: `1px solid ${supersededIds.has(d.id) ? 'var(--border)' : 'var(--success)'}`, background: supersededIds.has(d.id) ? 'var(--bg-elevated)' : 'var(--success-soft)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <CheckCircle size={12} color="var(--success)" />
-            <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)' }}>Decision recorded</span>
+            <CheckCircle size={12} color="var(--success)" aria-hidden="true" />
+            <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)' }}>
+              {supersededIds.has(d.id) ? 'Decision (superseded)' : 'Decision recorded'}
+            </span>
             <span style={{ fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>{new Date(d.decidedAt).toLocaleDateString()}</span>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text)', margin: '0 0 4px', lineHeight: 1.4 }}>{d.rationale}</p>
           {d.owner && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Owner: {d.owner}</div>}
-          {d.expectedSignals.length > 0 && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Expected: {d.expectedSignals.join(', ')}</div>}
-          {d.stopConditions.length > 0 && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Stop if: {d.stopConditions.join(', ')}</div>}
-          {d.supersedesId && <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 2 }}>Supersedes: {d.supersedesId}</div>}
-        </div>
+          {d.reviewAt && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Review by: {d.reviewAt}</div>}
+          {d.rejectedScenarioIds.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
+              Rejected: {d.rejectedScenarioIds.map((id) => otherScenarios.find((s) => s.id === id)?.name ?? id).join(', ')}
+            </div>
+          )}
+          {d.expectedSignals.length > 0 && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Expected: {d.expectedSignals.join('; ')}</div>}
+          {d.stopConditions.length > 0 && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Stop if: {d.stopConditions.join('; ')}</div>}
+          {d.supersedesId && <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 2 }}>Supersedes an earlier decision</div>}
+        </article>
       ))}
-      {!showForm ? (
-        <button onClick={() => setShowForm(true)} style={{ height: 30, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Plus size={12} /> Record decision
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} style={{ ...secondaryBtn, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Plus size={12} /> Record decision
+          </button>
+        )}
+        <button onClick={exportPacket} style={{ ...secondaryBtn, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Download size={12} /> Export decision packet
         </button>
-      ) : (
+      </div>
+      {showForm && (
         <div style={{ padding: 12, borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div>
-            <label style={labelStyle}>Rationale *</label>
-            <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} rows={3} placeholder="Why was this scenario chosen? What evidence supports it?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
+            <label htmlFor="decision-rationale" style={labelStyle}>Rationale (required)</label>
+            <textarea id="decision-rationale" value={rationale} onChange={(e) => setRationale(e.target.value)} rows={3} placeholder="Why this scenario? What evidence supports it?" style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '7px 9px' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <label style={labelStyle}>Owner</label>
-              <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Who is accountable?" style={inputStyle} />
+              <label htmlFor="decision-owner" style={labelStyle}>Owner</label>
+              <input id="decision-owner" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Who is accountable?" style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Review date</label>
-              <input type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} style={inputStyle} />
+              <label htmlFor="decision-review" style={labelStyle}>Review date</label>
+              <input id="decision-review" type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} style={inputStyle} />
             </div>
           </div>
           <div>
-            <label style={labelStyle}>Expected signal</label>
-            <input value={expectedSignal} onChange={(e) => setExpectedSignal(e.target.value)} placeholder="What would confirm this was correct?" style={inputStyle} />
+            <label htmlFor="decision-signals" style={labelStyle}>Expected signals (one per line)</label>
+            <textarea id="decision-signals" value={expectedSignals} onChange={(e) => setExpectedSignals(e.target.value)} rows={2} placeholder="What would show this is working?" style={{ ...inputStyle, height: 'auto', padding: '7px 9px' }} />
           </div>
           <div>
-            <label style={labelStyle}>Stop / reversal condition</label>
-            <input value={stopCondition} onChange={(e) => setStopCondition(e.target.value)} placeholder="What would indicate we should reverse?" style={inputStyle} />
+            <label htmlFor="decision-stop" style={labelStyle}>Stop conditions (one per line)</label>
+            <textarea id="decision-stop" value={stopConditions} onChange={(e) => setStopConditions(e.target.value)} rows={2} placeholder="What would make us reverse?" style={{ ...inputStyle, height: 'auto', padding: '7px 9px' }} />
           </div>
+          {otherScenarios.length > 0 && (
+            <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+              <legend style={labelStyle}>Rejected alternatives</legend>
+              {otherScenarios.map((o) => (
+                <label key={o.id} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--text)' }}>
+                  <input
+                    type="checkbox"
+                    checked={rejected.includes(o.id)}
+                    onChange={(e) => setRejected((prev) => (e.target.checked ? [...prev, o.id] : prev.filter((x) => x !== o.id)))}
+                  />
+                  {o.name}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {thisDecisions.length > 0 && (
+            <div>
+              <label htmlFor="decision-supersedes" style={labelStyle}>Supersedes</label>
+              <select id="decision-supersedes" value={supersedesId} onChange={(e) => setSupersedesId(e.target.value)} style={inputStyle}>
+                <option value="">Nothing — a new decision</option>
+                {thisDecisions.filter((d) => !supersededIds.has(d.id)).map((d) => (
+                  <option key={d.id} value={d.id}>{new Date(d.decidedAt).toLocaleDateString()} — {d.rationale.slice(0, 40)}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setShowForm(false)} style={secondaryBtn}>Cancel</button>
-            <button onClick={handleCreate} disabled={!rationale.trim()} style={{ ...primaryBtn, opacity: rationale.trim() ? 1 : 0.5 }}>Save (immutable)</button>
+            <button onClick={handleCreate} disabled={!rationale.trim()} style={{ ...primaryBtn, opacity: rationale.trim() ? 1 : 0.5 }}>Save decision (cannot be edited)</button>
           </div>
         </div>
       )}
@@ -669,20 +760,29 @@ function DecisionPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Delta overview (right panel)
+// Delta overview (right panel) — SIM-02 side-by-side / overlay + delta list
 // ---------------------------------------------------------------------------
 
 function DeltaOverview({
   map,
+  baselineSource,
   scenario,
   findings,
 }: {
   map: WardleyMap;
+  baselineSource: 'snapshot' | 'version' | 'current';
   scenario: Scenario;
   findings: ReturnType<typeof allFindings>;
 }) {
+  const [view, setView] = React.useState<'side-by-side' | 'overlay'>('side-by-side');
+  const scenarioMap = React.useMemo(() => applyScenarioChanges(map, scenario.changes), [map, scenario.changes]);
+  // Both SVGs come from the escaping renderer, so inserting them is safe
+  const baselineSvg = React.useMemo(() => renderMapSVG(map, { includeTitle: false }), [map]);
+  const scenarioSvg = React.useMemo(() => renderMapSVG(scenarioMap, { includeTitle: false }), [scenarioMap]);
+  const overlaySvg = React.useMemo(() => renderMapSVG(scenarioMap, { includeTitle: false, ghost: map }), [scenarioMap, map]);
+
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div style={{ maxWidth: 1100 }}>
       <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>
         {scenario.name}
       </h2>
@@ -690,16 +790,53 @@ function DeltaOverview({
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>{scenario.description}</p>
       )}
 
-      <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-subtle)', marginBottom: 20 }}>
-        Baseline: "{map.title}" · revision {scenario.baselineRevision} · branched {new Date(scenario.createdAt).toLocaleDateString()}
+      <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-subtle)', marginBottom: 12 }}>
+        Baseline: “{map.title}” · revision {scenario.baselineRevision} · branched {new Date(scenario.createdAt).toLocaleDateString()}
+        {baselineSource === 'snapshot' && ' · fixed snapshot'}
       </div>
+      {baselineSource === 'current' && (
+        <div role="note" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--warning)', background: 'var(--warning-soft)', fontSize: 12, color: 'var(--text)', marginBottom: 12 }}>
+          This scenario was created before baselines were stored, and no saved version matches its revision, so it is compared with the current map.
+        </div>
+      )}
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+        Results are conditional consequences of the stated assumptions, not predictions.
+      </p>
 
-      {/* Delta summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 20 }}>
         <StatTile label="Changes" value={scenario.changes.length} />
         <StatTile label="Assumptions" value={scenario.assumptions.length} />
         <StatTile label="Consequences" value={scenario.consequences.length} />
       </div>
+
+      {/* Visual comparison */}
+      <section aria-labelledby="comparison-heading" style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          <h3 id="comparison-heading" style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)', margin: 0, flex: 1 }}>Comparison</h3>
+          {(['side-by-side', 'overlay'] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} aria-pressed={view === v} style={{ ...secondaryBtn, border: `1px solid ${view === v ? 'var(--primary)' : 'var(--border)'}`, color: view === v ? 'var(--primary)' : 'var(--text-muted)', background: view === v ? 'var(--primary-soft)' : 'none' }}>
+              {v === 'side-by-side' ? 'Side by side' : 'Overlay'}
+            </button>
+          ))}
+        </div>
+        {view === 'side-by-side' ? (
+          <div className="scenario-compare">
+            <figure style={figureStyle}>
+              <figcaption style={captionStyle}>Baseline</figcaption>
+              <div role="img" aria-label={`Baseline map: ${map.title}`} dangerouslySetInnerHTML={{ __html: baselineSvg }} style={svgBox} />
+            </figure>
+            <figure style={figureStyle}>
+              <figcaption style={captionStyle}>Scenario: {scenario.name}</figcaption>
+              <div role="img" aria-label={`Scenario map: ${scenario.name}`} dangerouslySetInnerHTML={{ __html: scenarioSvg }} style={svgBox} />
+            </figure>
+          </div>
+        ) : (
+          <figure style={figureStyle}>
+            <figcaption style={captionStyle}>Scenario over baseline — dashed outlines show where moved components were; added and removed ones are labelled</figcaption>
+            <div role="img" aria-label="Scenario overlaid on baseline" dangerouslySetInnerHTML={{ __html: overlaySvg }} style={svgBox} />
+          </figure>
+        )}
+      </section>
 
       {/* Rule findings */}
       {findings.length > 0 && (
@@ -708,8 +845,8 @@ function DeltaOverview({
           {findings.map((f, i) => (
             <div key={i} style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 6, border: `1px solid ${f.severity === 'error' ? 'var(--error)' : f.severity === 'warning' ? 'var(--warning)' : 'var(--border)'}`, background: f.severity === 'error' ? 'var(--error-soft)' : f.severity === 'warning' ? 'var(--warning-soft)' : 'var(--info-soft)' }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                {f.severity === 'error' ? <AlertCircle size={13} color="var(--error)" /> : f.severity === 'warning' ? <AlertTriangle size={13} color="var(--warning)" /> : <Info size={13} color="var(--info)" />}
-                <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)' }}>{f.title}</span>
+                {f.severity === 'error' ? <AlertCircle size={13} color="var(--error)" aria-hidden="true" /> : f.severity === 'warning' ? <AlertTriangle size={13} color="var(--warning)" aria-hidden="true" /> : <Info size={13} color="var(--info)" aria-hidden="true" />}
+                <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)' }}><span style={{ textTransform: 'capitalize' }}>{f.severity}</span>: {f.title}</span>
                 <span style={{ fontSize: 10, color: 'var(--text-subtle)', marginLeft: 'auto' }}>{f.ruleId} v{f.ruleVersion}</span>
               </div>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 3px' }}>{f.explanation}</p>
@@ -719,17 +856,19 @@ function DeltaOverview({
         </div>
       )}
 
-      {/* Full delta list */}
-      {scenario.changes.length > 0 && (
-        <div>
-          <h3 style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>All changes ({scenario.changes.length})</h3>
+      {/* Full delta list — readable without colour */}
+      {scenario.changes.length > 0 ? (
+        <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <caption style={{ textAlign: 'left', fontSize: 13, fontWeight: 650, color: 'var(--text)', padding: '0 0 8px' }}>
+              All changes ({scenario.changes.length})
+            </caption>
             <thead>
               <tr style={{ background: 'var(--bg-elevated)' }}>
-                <th style={thStyle}>Icon</th>
-                <th style={thStyle}>Change</th>
-                <th style={thStyle}>Detail</th>
-                <th style={thStyle}>Rationale</th>
+                <th scope="col" style={thStyle}><span style={visuallyHidden}>Kind</span></th>
+                <th scope="col" style={thStyle}>Change</th>
+                <th scope="col" style={thStyle}>Detail</th>
+                <th scope="col" style={thStyle}>Rationale</th>
               </tr>
             </thead>
             <tbody>
@@ -737,7 +876,7 @@ function DeltaOverview({
                 const s = summarizeChange(change, map);
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ ...tdStyle, textAlign: 'center', fontSize: 16, fontFamily: 'monospace' }}>{s.icon}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontSize: 16, fontFamily: 'monospace' }} aria-hidden="true">{s.icon}</td>
                     <td style={{ ...tdStyle, fontWeight: 550 }}>{s.label}</td>
                     <td style={tdStyle}>{s.detail}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-muted)', fontStyle: 'italic' }}>{s.rationale || '—'}</td>
@@ -747,18 +886,21 @@ function DeltaOverview({
             </tbody>
           </table>
         </div>
-      )}
-
-      {scenario.changes.length === 0 && (
+      ) : (
         <div style={{ textAlign: 'center', padding: '32px 16px', border: '2px dashed var(--border)', borderRadius: 10 }}>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-            No changes yet. Add changes in the left panel to build this scenario.
+            No changes yet. Add changes in the Changes tab to build this scenario.
           </p>
         </div>
       )}
     </div>
   );
 }
+
+const figureStyle: React.CSSProperties = { margin: 0, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', minWidth: 0 };
+const captionStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', padding: '6px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' };
+const svgBox: React.CSSProperties = { lineHeight: 0 };
+const visuallyHidden: React.CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' };
 
 // ---------------------------------------------------------------------------
 // Shared helpers

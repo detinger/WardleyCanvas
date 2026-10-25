@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { installMemoryStorage } from '../../../tests/memory-storage';
 import {
   applyScenarioChanges, createScenario, saveScenario, listScenarios, loadScenario, deleteScenario,
-  createDecisionRecord, listDecisions, getDecisionRecord,
+  createDecisionRecord, listDecisions, getDecisionRecord, resolveBaseline,
 } from '../use-scenarios';
 import { runScenarioRules, allFindings } from '@/analysis/scenario-rules';
 import { validateMap, hasErrors } from '@/domain/validation';
@@ -97,5 +97,33 @@ describe('scenario and decision storage', () => {
     const d2 = createDecisionRecord({ ...base, rationale: 'second', supersedesId: d1.id });
     expect(getDecisionRecord(d1.id)?.rationale).toBe('first');
     expect(listDecisions('m1').map((d) => d.id)).toEqual([d1.id, d2.id]);
+  });
+});
+
+
+describe('immutable baseline (SIM-01)', () => {
+  it('a scenario keeps its branch-time snapshot when the map changes later', () => {
+    const map = sampleMap();
+    const sc = createScenario(map.id, 1, 'A', undefined, map);
+    map.elements[2].evolution = 0.1; // later edit to the live map
+    const stored = loadScenario(map.id, sc.id)!;
+    expect(stored.baseline!.elements[2].evolution).toBe(0.6);
+    expect(resolveBaseline(stored, map, []).source).toBe('snapshot');
+  });
+
+  it('saving a scenario can never replace its baseline', () => {
+    const map = sampleMap();
+    const sc = createScenario(map.id, 1, 'A', undefined, map);
+    const tampered = { ...sc, baseline: { ...map, title: 'tampered' } };
+    saveScenario(tampered);
+    expect(loadScenario(map.id, sc.id)!.baseline!.title).toBe('Sample');
+  });
+
+  it('legacy scenarios fall back to the matching saved version, then the current map', () => {
+    const current = { ...sampleMap(), revision: 5, title: 'current' };
+    const v3 = { ...sampleMap(), revision: 3, title: 'v3' };
+    const legacy = createScenario(current.id, 3, 'old');
+    expect(resolveBaseline(legacy, current, [{ map: v3 }])).toMatchObject({ source: 'version', map: { title: 'v3' } });
+    expect(resolveBaseline(legacy, current, [])).toMatchObject({ source: 'current', map: { title: 'current' } });
   });
 });

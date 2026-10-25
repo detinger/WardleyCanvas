@@ -57,3 +57,23 @@ describe('renderMapSVG', () => {
     expect(exportSize({ includeTitle: false }).height).toBe(690);
   });
 });
+
+describe('overlay comparison', () => {
+  it('labels moved, added and removed elements in text', () => {
+    const baseline = sampleMap();
+    const scenario = structuredClone(baseline);
+    scenario.elements = scenario.elements.filter((e) => e.id !== 'b');
+    scenario.elements.find((e) => e.id === 'a')!.evolution = 0.9;
+    scenario.elements.push({ ...scenario.elements[2], id: 'c', name: 'C' });
+    const svg = renderMapSVG(scenario, { ghost: baseline });
+    expect(svg).toContain('>B (removed)</text>');
+    expect(svg).toContain('>C (new)</text>');
+    expect(svg).toContain('>was</text>');
+    expect(svg).not.toContain('>Need (new)</text>');
+  });
+
+  it('draws nothing extra when nothing changed', () => {
+    const m = sampleMap();
+    expect(renderMapSVG(m, { ghost: structuredClone(m) })).toBe(renderMapSVG(m));
+  });
+});

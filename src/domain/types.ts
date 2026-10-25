@@ -278,6 +278,12 @@ export interface Scenario {
   name: string;
   baselineMapId: Id;
   baselineRevision: number;
+  /**
+   * SIM-01: immutable snapshot of the map at branch time. Later edits to the
+   * map never change what a scenario is compared against. Optional only for
+   * scenarios created before snapshots existed.
+   */
+  baseline?: WardleyMap;
   description?: string;
   horizonLabel?: string;
   assumptions: ScenarioAssumption[];

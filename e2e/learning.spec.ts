@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './fixtures';
 
 // Phase 3 gates: LRN-04 first-map onboarding (keyboard only), LRN-05 accessible
 // feedback, LRN-02 progress, example answer only after completion.

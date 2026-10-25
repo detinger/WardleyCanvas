@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './fixtures';
 
 // Phase 1 release slice: create, connect, position, validate, save, reopen, recover.
 

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, GitBranch, Clock, Trash2, ChevronRight } from 'lucide-react';
 import { loadMap } from '@/hooks/use-persistence';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { listScenarios, createScenario, deleteScenario } from '@/hooks/use-scenarios';
 import { Scenario } from '@/domain/types';
 
@@ -28,7 +29,7 @@ export default function ScenariosPage({ params }: Props) {
 
   const handleCreate = () => {
     if (!newName.trim() || !map) return;
-    const sc = createScenario(mapId, map.revision, newName.trim(), newDesc.trim() || undefined);
+    const sc = createScenario(mapId, map.revision, newName.trim(), newDesc.trim() || undefined, map);
     setNewName('');
     setNewDesc('');
     setShowCreate(false);
@@ -40,6 +41,11 @@ export default function ScenariosPage({ params }: Props) {
     deleteScenario(mapId, id);
     refresh();
   };
+
+  const hydrated = useHydrated();
+  if (!hydrated) {
+    return <main id="main-content" style={{ flex: 1 }} aria-busy="true" />;
+  }
 
   if (!map) {
     return (
@@ -84,8 +90,8 @@ export default function ScenariosPage({ params }: Props) {
           <h3 style={{ fontSize: 14, fontWeight: 650, color: 'var(--text)', margin: '0 0 12px' }}>New scenario</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Name *</label>
-              <input
+              <label htmlFor="new-scenario-name" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Name *</label>
+              <input id="new-scenario-name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
@@ -95,8 +101,8 @@ export default function ScenariosPage({ params }: Props) {
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Description</label>
-              <textarea
+              <label htmlFor="new-scenario-description" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea id="new-scenario-description"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 rows={2}

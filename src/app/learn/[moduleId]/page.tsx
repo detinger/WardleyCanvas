@@ -24,10 +24,12 @@ export default function ModulePage({ params }: Props) {
   const router = useRouter();
   const mod = getModule(moduleId);
   const [tab, setTab] = React.useState<Tab>('learn');
-  const [progress, setProgress] = React.useState(() => loadProgress().moduleProgress);
+  // Loaded after mount so server and client markup match (localStorage is client-only)
+  const [progress, setProgress] = React.useState<ReturnType<typeof loadProgress>['moduleProgress']>({});
 
   React.useEffect(() => {
     if (mod) markModuleStarted(mod.id);
+    setProgress(loadProgress().moduleProgress);
   }, [mod]);
 
   if (!mod) {
@@ -105,7 +107,7 @@ export default function ModulePage({ params }: Props) {
               style={{
                 height: 36,
                 padding: '0 16px',
-                border: 'none',
+                borderTop: 'none', borderLeft: 'none', borderRight: 'none',
                 background: 'none',
                 cursor: 'pointer',
                 fontSize: 14,

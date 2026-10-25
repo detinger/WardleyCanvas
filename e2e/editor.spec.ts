@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mapWith, node, currentSource, selectByKeyboard, canvas, newMap } from './helpers';
 
 // Phase 1 gates: EDT-01 layouts, EDT-02 stable coordinates, EDT-04 keyboard

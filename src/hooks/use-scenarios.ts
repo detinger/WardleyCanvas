@@ -54,7 +54,8 @@ export function createScenario(
   mapId: Id,
   baselineRevision: number,
   name: string,
-  description?: string
+  description?: string,
+  baseline?: WardleyMap
 ): Scenario {
   const now = new Date().toISOString();
   const scenario: Scenario = {
@@ -62,6 +63,7 @@ export function createScenario(
     name,
     baselineMapId: mapId,
     baselineRevision,
+    ...(baseline ? { baseline: structuredClone(baseline) } : {}),
     description,
     assumptions: [],
     changes: [],
@@ -79,7 +81,13 @@ export function saveScenario(scenario: Scenario): void {
   const store = readStore();
   const list = store[scenario.baselineMapId] ?? [];
   const idx = list.findIndex((s) => s.id === scenario.id);
-  const updated = { ...scenario, updatedAt: new Date().toISOString() };
+  const stored = idx >= 0 ? list[idx] : undefined;
+  // The baseline snapshot is immutable: whatever the caller passes, keep the stored one
+  const updated: Scenario = {
+    ...scenario,
+    ...(stored?.baseline ? { baseline: stored.baseline } : {}),
+    updatedAt: new Date().toISOString(),
+  };
   store[scenario.baselineMapId] = idx >= 0
     ? list.map((s) => (s.id === scenario.id ? updated : s))
     : [...list, updated];
@@ -90,6 +98,21 @@ export function deleteScenario(mapId: Id, scenarioId: Id): void {
   const store = readStore();
   store[mapId] = (store[mapId] ?? []).filter((s) => s.id !== scenarioId);
   writeStore(store);
+}
+
+/**
+ * The map a scenario is compared against: its snapshot, else the saved version
+ * with the scenario's baseline revision, else (legacy) the current map.
+ */
+export function resolveBaseline(
+  scenario: Scenario,
+  current: WardleyMap,
+  versions: { map: WardleyMap }[]
+): { map: WardleyMap; source: 'snapshot' | 'version' | 'current' } {
+  if (scenario.baseline) return { map: scenario.baseline, source: 'snapshot' };
+  const version = versions.find((v) => v.map.revision === scenario.baselineRevision);
+  if (version) return { map: version.map, source: 'version' };
+  return { map: current, source: 'current' };
 }
 
 // ---------------------------------------------------------------------------

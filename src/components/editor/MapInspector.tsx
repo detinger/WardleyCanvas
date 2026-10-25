@@ -87,7 +87,7 @@ export default function MapInspector({ map, selectedIds, editor }: MapInspectorP
               color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
               borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
               background: 'none',
-              border: 'none',
+              borderTop: 'none', borderLeft: 'none', borderRight: 'none',
               borderRadius: 0,
               cursor: 'pointer',
               whiteSpace: 'nowrap',

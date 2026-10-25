@@ -131,14 +131,19 @@ export default function CanvasRenderer({
     return () => window.removeEventListener('keydown', onKey);
   }, [fit, zoomIn, zoomOut]);
 
-  // Mouse wheel zoom
-  const handleWheel = React.useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
+  // Mouse wheel zoom. React's onWheel is passive, so preventDefault would be
+  // ignored and the page would scroll too; use a native non-passive listener.
+  React.useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    const { x: svgX, y: svgY } = svgCoords(svg, e.clientX, e.clientY);
-    const factor = e.deltaY > 0 ? 1.1 : 0.9;
-    setViewBox((vb) => zoomViewBox(vb, factor, svgX, svgY));
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const { x: svgX, y: svgY } = svgCoords(svg, e.clientX, e.clientY);
+      const factor = e.deltaY > 0 ? 1.1 : 0.9;
+      setViewBox((vb) => zoomViewBox(vb, factor, svgX, svgY));
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
   }, []);
 
   // Canvas pointer down: start pan or add-element
@@ -299,7 +304,6 @@ export default function CanvasRenderer({
       style={{ background: 'var(--canvas-bg)', cursor, userSelect: 'none', display: 'block' }}
       aria-label="Wardley map canvas"
       role="img"
-      onWheel={handleWheel}
       onPointerDown={handleCanvasPointerDown}
       onPointerMove={handleCanvasPointerMove}
       onPointerUp={handleCanvasPointerUp}

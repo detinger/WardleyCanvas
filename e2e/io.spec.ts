@@ -1,4 +1,4 @@
-import { test, expect, Page, Download } from '@playwright/test';
+import { test, expect, Page, Download } from './fixtures';
 import { readFile } from 'node:fs/promises';
 import { mapWith, node, currentSource, TEA_SHOP } from './helpers';
 

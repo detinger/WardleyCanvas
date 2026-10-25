@@ -14,6 +14,12 @@ export interface SvgExportOptions {
   background?: boolean;
   /** Include the map title above the plot */
   includeTitle?: boolean;
+  /**
+   * SIM-02 overlay: draw this baseline underneath. Moved elements get a dashed
+   * "was here" outline and connector; added/removed ones are labelled in text,
+   * so the comparison is readable without colour.
+   */
+  ghost?: WardleyMap;
 }
 
 // Exact values of the section 4.2 tokens used by the canvas (globals.css)
@@ -151,8 +157,32 @@ export function renderMapSVG(map: WardleyMap, options: SvgExportOptions = {}): s
     }
   }
 
+  // Baseline overlay (drawn beneath the scenario's elements)
+  const ghost = options.ghost;
+  const ghostIds = new Set(ghost?.elements.map((e) => e.id) ?? []);
+  if (ghost) {
+    for (const old of ghost.elements) {
+      const now = byId.get(old.id);
+      const ox = toSvgX(old.evolution);
+      const oy = toSvgY(old.visibility);
+      if (!now) {
+        out.push(`<g><circle cx="${n(ox)}" cy="${n(oy)}" r="${ELEMENT_RADIUS}" fill="none" stroke="${c.subtle}" stroke-width="1.5" stroke-dasharray="3 3"/>` +
+          `<text x="${n(ox)}" y="${n(oy + ELEMENT_RADIUS + 16)}" font-size="11" fill="${c.subtle}" text-anchor="middle">${escapeXml(old.name)} (removed)</text></g>`);
+        continue;
+      }
+      const nx = toSvgX(now.evolution);
+      const ny = toSvgY(now.visibility);
+      if (Math.abs(nx - ox) < 1 && Math.abs(ny - oy) < 1) continue;
+      out.push(`<g><circle cx="${n(ox)}" cy="${n(oy)}" r="${ELEMENT_RADIUS}" fill="none" stroke="${c.subtle}" stroke-width="1.5" stroke-dasharray="3 3"/>` +
+        `<line x1="${n(ox)}" y1="${n(oy)}" x2="${n(nx)}" y2="${n(ny)}" stroke="${c.accent}" stroke-width="1.5" stroke-dasharray="2 3"/>` +
+        `<text x="${n(ox)}" y="${n(oy - ELEMENT_RADIUS - 6)}" font-size="10" fill="${c.subtle}" text-anchor="middle">was</text></g>`);
+    }
+  }
+
   // Elements
-  for (const el of map.elements) out.push(renderElement(el, c));
+  for (const el of map.elements) {
+    out.push(renderElement(ghost && !ghostIds.has(el.id) ? { ...el, name: `${el.name} (new)` } : el, c));
+  }
 
   // Annotations
   for (const ann of map.annotations) {
