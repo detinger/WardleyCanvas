@@ -71,4 +71,10 @@ it('catalog provenance carries attribution and licence', () => {
   const p = catalogProvenance();
   expect(p.license).toMatch(/CC BY-SA 4\.0/);
   expect(p.climate.every((e) => e.attribution.length > 0)).toBe(true);
+  for (const entry of [...p.climate, ...p.doctrine, ...p.gameplay]) {
+    expect(entry.license).toBe('CC BY-SA 4.0');
+    expect(entry.sourceUrl).toBe('https://archive.learnwardleymapping.com/book.html');
+    expect(entry.adaptationNotice).toMatch(/adapted and rewritten/i);
+    expect(entry.lastReviewed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  }
 });

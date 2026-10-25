@@ -31,6 +31,6 @@ export const DRAFT_META: Omit<ContentMeta, 'version'> = {
   lastReviewed: '2026-10-25',
   license: 'CC BY-SA 4.0',
   sources: [
-    { label: 'Simon Wardley — Wardley Maps (CC BY-SA 4.0)', url: 'https://medium.com/wardleymaps' },
+    { label: 'Simon Wardley — Wardley Maps (CC BY-SA 4.0)', url: 'https://archive.learnwardleymapping.com/book.html' },
   ],
 };

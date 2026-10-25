@@ -5,6 +5,7 @@ import PageLayout from '@/components/shell/PageLayout';
 import { CLIMATE_CATALOG, CLIMATE_CATEGORIES } from '@/analysis/climate-catalog';
 import { DOCTRINE_CATALOG, DOCTRINE_PHASES } from '@/analysis/doctrine-catalog';
 import { GAMEPLAY_CATALOG, GAMEPLAY_CATEGORIES } from '@/analysis/gameplay-catalog';
+import { WARDLEY_CATALOG_PROVENANCE } from '@/analysis/catalog-meta';
 import { DEFAULT_EVOLUTION_LABELS } from '@/domain/types';
 
 const NOTATION: [string, string, string][] = [
@@ -139,11 +140,12 @@ export default function ReferencePage() {
           <section id="attribution" aria-labelledby="attribution-h">
             <h2 id="attribution-h">Sources and licence</h2>
             <p>
-              Catalog definitions are adapted from <a href="https://medium.com/wardleymaps" target="_blank" rel="noopener noreferrer">Wardley Maps</a> by
+              Catalog definitions are adapted and rewritten from <a href={WARDLEY_CATALOG_PROVENANCE.sourceUrl} target="_blank" rel="noopener noreferrer">Wardley Maps</a> by
               Simon Wardley, licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.
               These adaptations are shared under the same licence. This product is not affiliated with or endorsed by Simon Wardley.
               The maps-as-code syntax follows <a href="https://docs.onlinewardleymaps.com/" target="_blank" rel="noopener noreferrer">OnlineWardleyMaps</a>.
             </p>
+            <p className="ref-id">Catalog provenance reviewed {WARDLEY_CATALOG_PROVENANCE.lastReviewed}. See the repository notice for third-party software licences.</p>
           </section>
         </article>
       </div>
