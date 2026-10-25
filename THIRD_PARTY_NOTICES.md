@@ -6,7 +6,7 @@ Reviewed 2026-10-25. The exact installed versions are recorded in `package-lock.
 
 Catalog definitions and learning material are adapted and rewritten from **Wardley Maps** by Simon Wardley: <https://archive.learnwardleymapping.com/book.html>.
 
-The source material is licensed under [Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/). The adaptations in this project are shared under the same licence. Changes were made for concise in-product teaching, assessment prompts, examples, risk notes, and accessible presentation. Wardley Maps Studio is not affiliated with or endorsed by Simon Wardley.
+The source material is licensed under [Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/). The adaptations in this project are shared under the same licence. Changes were made for concise in-product teaching, assessment prompts, examples, risk notes, and accessible presentation. Wardley Canvas is not affiliated with or endorsed by Simon Wardley.
 
 OnlineWardleyMaps documentation (<https://docs.onlinewardleymaps.com/docs/dsl-reference/>) is used as an interoperability reference. This repository contains an independent parser and does not copy OnlineWardleyMaps implementation code.
 

@@ -1,4 +1,4 @@
-# Wardley Maps Studio Improvement Plan
+# Wardley Canvas Improvement Plan
 
 **Status:** Agent-ready implementation specification  
 **Version:** 1.0  
@@ -58,7 +58,7 @@ Create a short `docs/current-state-audit.md` containing:
 
 ### 2.1 Product promise
 
-Wardley Maps Studio helps a learner or strategy team move through a complete loop:
+Wardley Canvas helps a learner or strategy team move through a complete loop:
 
 1. define purpose, users, and user needs;
 2. build a value chain of components and dependencies;
@@ -1335,4 +1335,3 @@ Use these references to verify domain content and interoperability; do not copy 
 - [Simon Wardley's book index at Learn Wardley Mapping](https://archive.learnwardleymapping.com/book.html) — mapping, doctrine, and gameplay context; attributed there under CC BY-SA 4.0.
 
 The supplied `STYLE(1).md` remains the binding source for all visual values and layout patterns in this plan.
-

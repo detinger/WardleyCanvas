@@ -26,7 +26,7 @@ export function solution(
 
 /** Shared metadata for repository-authored content after human review. */
 export const REVIEWED_META: Omit<ContentMeta, 'version'> = {
-  author: 'Wardley Maps Studio contributors',
+  author: 'Wardley Canvas contributors',
   reviewer: 'Project owner',
   reviewStatus: 'reviewed',
   lastReviewed: '2026-10-25',

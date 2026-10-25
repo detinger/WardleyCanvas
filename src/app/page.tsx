@@ -36,7 +36,7 @@ export default function HomePage() {
       {/* Hero */}
       <div style={{ marginBottom: 40 }}>
         <p className="text-eyebrow" style={{ marginBottom: 8 }}>
-          Wardley Maps Studio
+          Wardley Canvas
         </p>
         <h1
           style={{

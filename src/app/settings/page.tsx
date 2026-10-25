@@ -23,7 +23,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `wardley-studio-backup-${backup.exportedAt.slice(0, 10)}.json`;
+    a.download = `wardley-canvas-backup-${backup.exportedAt.slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

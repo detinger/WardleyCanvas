@@ -28,7 +28,7 @@ describe('data controls', () => {
     seed();
     data.set(DATA_KEYS.drafts, '{broken');
     const backup = exportAllData('2026-10-25T00:00:00.000Z');
-    expect(backup.format).toBe('wardley-studio-backup');
+    expect(backup.format).toBe('wardley-canvas-backup');
     expect(Object.keys(backup.data)).toEqual(Object.keys(DATA_KEYS));
     expect((backup.data.maps as Record<string, unknown>)[sampleMap().id]).toBeTruthy();
     expect(backup.data.drafts).toEqual({ unparseable: '{broken' });

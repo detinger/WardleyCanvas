@@ -59,7 +59,7 @@ test('settings: theme, export all data, delete local data', async ({ page }) => 
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export all data' }).click()]);
   const backup = JSON.parse(await readFile((await download.path())!, 'utf8'));
-  expect(backup.format).toBe('wardley-studio-backup');
+  expect(backup.format).toBe('wardley-canvas-backup');
   expect(Object.keys(backup.data.maps)).toHaveLength(1);
 
   await page.getByRole('button', { name: 'Delete local data…' }).click();

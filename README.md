@@ -1,6 +1,6 @@
-# Wardley Maps Studio
+# Wardley Canvas
 
-Wardley Maps Studio is a local-first workspace for learning, editing, analyzing, and comparing Wardley Maps. It keeps the map as the primary artifact while making assumptions, evidence, uncertainty, scenarios, and decisions explicit.
+Wardley Canvas is a local-first workspace for learning, editing, analyzing, and comparing Wardley Maps. It keeps the map as the primary artifact while making assumptions, evidence, uncertainty, scenarios, and decisions explicit.
 
 ## What it includes
 

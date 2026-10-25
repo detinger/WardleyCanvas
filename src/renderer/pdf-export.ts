@@ -193,7 +193,7 @@ function renderDetailPages(map: WardleyMap, theme: ExportTheme, generatedDate: s
   let y = 96;
 
   const newPage = () => {
-    footer(current.ctx, theme, `Wardley Maps Studio - ${map.title} - generated ${generatedDate}`);
+    footer(current.ctx, theme, `Wardley Canvas - ${map.title} - generated ${generatedDate}`);
     pages.push(current.canvas);
     current = canvas(theme);
     y = 96;
@@ -279,7 +279,7 @@ function renderDetailPages(map: WardleyMap, theme: ExportTheme, generatedDate: s
     `${provenance.license} This application is not affiliated with or endorsed by Simon Wardley.`
   ).replace(/[\u2010-\u2015]/g, '-'));
 
-  footer(current.ctx, theme, `Wardley Maps Studio - ${map.title} - generated ${generatedDate}`);
+  footer(current.ctx, theme, `Wardley Canvas - ${map.title} - generated ${generatedDate}`);
   pages.push(current.canvas);
   return pages;
 }

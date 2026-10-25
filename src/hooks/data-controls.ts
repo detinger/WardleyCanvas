@@ -16,7 +16,7 @@ export const DATA_KEYS = {
 /** Preferences that are not user content; kept unless explicitly included. */
 const PREFERENCE_KEYS = ['wardleyStudio.theme', 'wardleyStudio.sidebarExpanded'] as const;
 
-const EXPORT_FORMAT = 'wardley-studio-backup';
+const EXPORT_FORMAT = 'wardley-canvas-backup';
 const EXPORT_VERSION = 1;
 
 function storage(): Storage | null {

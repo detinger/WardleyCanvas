@@ -4,7 +4,7 @@ import AppShell from '@/components/shell/AppShell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Wardley Maps Studio',
+  title: 'Wardley Canvas',
   description: 'Create, analyze, and learn with interactive Wardley Maps.',
 };
 

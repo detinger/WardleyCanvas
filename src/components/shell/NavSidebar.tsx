@@ -143,7 +143,7 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <WardleyMark />
             <span style={{ fontSize: 14, fontWeight: 650, color: 'var(--text)', letterSpacing: '-0.01em' }}>
-              Wardley Studio
+              Wardley Canvas
             </span>
           </div>
         )}

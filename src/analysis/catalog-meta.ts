@@ -12,6 +12,6 @@ export const WARDLEY_CATALOG_PROVENANCE: CatalogProvenance = {
   license: 'CC BY-SA 4.0',
   sourceUrl: 'https://archive.learnwardleymapping.com/book.html',
   adaptationNotice:
-    'Adapted and rewritten for Wardley Maps Studio from Wardley Maps by Simon Wardley; no endorsement is implied.',
+    'Adapted and rewritten for Wardley Canvas from Wardley Maps by Simon Wardley; no endorsement is implied.',
   lastReviewed: '2026-10-25',
 };
