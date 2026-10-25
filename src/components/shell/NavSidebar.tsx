@@ -118,7 +118,6 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
       style={{
         width: expanded ? 232 : 64,
         flexShrink: 0,
-        background: 'var(--bg-elevated)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
