@@ -12,6 +12,7 @@ function initial(): EditorState {
     saveState: 'clean',
     nudging: false,
     previewBase: null,
+    highlightIds: [],
   };
 }
 

@@ -5,10 +5,11 @@
 
 import * as React from 'react';
 import { AlertTriangle, AlertCircle, Info, Lightbulb, Trash2, ChevronDown, ChevronRight, Plus, ExternalLink, Clock, Shield, Zap, BookOpen, X } from 'lucide-react';
-import { WardleyMap, MapElement, Dependency, Id, ComponentType, MapElementKind, Evidence, PatternAssessment, DoctrineAssessment, GameplayHypothesis, Confidence, generateId } from '@/domain/types';
+import { WardleyMap, MapElement, Dependency, EvolutionMovement, Pipeline, MapAnnotation, Id, ComponentType, MapElementKind, Evidence, PatternAssessment, DoctrineAssessment, GameplayHypothesis, Confidence, generateId } from '@/domain/types';
 import { ValidationFinding, ValidationSeverity, validateMap, countBySeverity } from '@/domain/validation';
 import { useMapEditor } from '@/hooks/use-map-editor';
 import { describeDependency } from '@/domain/editing';
+import AssessmentEditor, { CommitText } from './AssessmentEditor';
 import { sanitizeUrl } from '@/parser/owm';
 import { CLIMATE_CATALOG, CLIMATE_CATEGORIES } from '@/analysis/climate-catalog';
 import { DOCTRINE_CATALOG, DOCTRINE_PHASES } from '@/analysis/doctrine-catalog';
@@ -212,7 +213,7 @@ function MapDetails({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => editor.setTitle(title)}
+            onBlur={() => { if (title !== map.title) editor.setTitle(title); }}
             style={inputStyle}
           />
         </Field>
@@ -220,7 +221,7 @@ function MapDetails({
           <textarea
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            onBlur={() => editor.setPurpose(purpose)}
+            onBlur={() => { if (purpose !== (map.purpose ?? '')) editor.setPurpose(purpose); }}
             rows={3}
             placeholder="Who has the need, and what are you exploring?"
             style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '8px 10px' }}
@@ -263,7 +264,84 @@ function MapDetails({
           ))}
         </div>
       </Section>
+
+      <NotesSection map={map} editor={editor} />
     </div>
+  );
+}
+
+/** EDT-08: notes and numbered annotations, editable without the source view. */
+function NotesSection({ map, editor }: { map: WardleyMap; editor: ReturnType<typeof useMapEditor> }) {
+  const update = (id: Id, changes: Partial<MapAnnotation>) =>
+    editor.patchMap({ annotations: map.annotations.map((a) => (a.id === id ? { ...a, ...changes } : a)) });
+  const nextNumber = Math.max(0, ...map.annotations.map((a) => a.number ?? 0)) + 1;
+
+  return (
+    <Section label={`Notes (${map.annotations.length})`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {map.annotations.map((ann, i) => (
+          <div key={ann.id} style={{ padding: 8, border: '1px solid var(--border)', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <CommitText
+              id={`note-text-${ann.id}`}
+              label={ann.number != null ? `Annotation ${ann.number}` : `Note ${i + 1}`}
+              value={ann.text}
+              onCommit={(text) => update(ann.id, { text })}
+              multiline
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {(['y', 'x'] as const).map((key) => (
+                <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <label htmlFor={`note-${key}-${ann.id}`} style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {key === 'y' ? 'Visibility (0–1)' : 'Evolution (0–1)'}
+                  </label>
+                  <input
+                    id={`note-${key}-${ann.id}`}
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={ann[key]}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v)) update(ann.id, { [key]: Math.max(0, Math.min(1, v)) });
+                    }}
+                    style={{ ...inputStyle, height: 28 }}
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => editor.patchMap({ annotations: map.annotations.filter((a) => a.id !== ann.id) })}
+              aria-label={`Remove ${ann.number != null ? `annotation ${ann.number}` : `note ${i + 1}`}`}
+              style={{ ...smallButtonStyle, alignSelf: 'flex-start', color: 'var(--error)' }}
+            >
+              <Trash2 size={12} /> Remove
+            </button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => editor.patchMap({ annotations: [...map.annotations, { id: generateId('ann'), text: 'New note', x: 0.5, y: 0.5 }] })}
+            style={smallButtonStyle}
+          >
+            <Plus size={12} /> Add note
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              editor.patchMap({
+                annotations: [...map.annotations, { id: generateId('ann'), number: nextNumber, text: 'New annotation', x: 0.5, y: 0.5 }],
+              })
+            }
+            style={smallButtonStyle}
+          >
+            <Plus size={12} /> Add numbered annotation
+          </button>
+        </div>
+      </div>
+    </Section>
   );
 }
 
@@ -343,7 +421,7 @@ function ElementDetails({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onBlur={() => editor.updateElement(element.id, { name })}
+            onBlur={() => { if (name !== element.name) editor.updateElement(element.id, { name }); }}
             style={inputStyle}
           />
         </Field>
@@ -351,7 +429,7 @@ function ElementDetails({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            onBlur={() => editor.updateElement(element.id, { description })}
+            onBlur={() => { if (description !== (element.description ?? '')) editor.updateElement(element.id, { description }); }}
             rows={2}
             style={{ ...inputStyle, height: 'auto', resize: 'vertical', padding: '8px 10px' }}
           />
@@ -442,6 +520,7 @@ function ElementDetails({
             onChange={(e) =>
               editor.updateElement(element.id, { visibility: parseFloat(e.target.value) })
             }
+            aria-label="Visibility slider"
             style={{ width: '100%' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-subtle)' }}>
@@ -460,6 +539,7 @@ function ElementDetails({
             onChange={(e) =>
               editor.updateElement(element.id, { evolution: parseFloat(e.target.value) })
             }
+            aria-label="Evolution slider"
             style={{ width: '100%' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-subtle)' }}>
@@ -488,6 +568,26 @@ function ElementDetails({
           />
           Inertia (resistant to movement)
         </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+          <label htmlFor={`sourcing-${element.id}`} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Sourcing
+          </label>
+          <select
+            id={`sourcing-${element.id}`}
+            value={element.sourcing ?? 'unspecified'}
+            onChange={(e) =>
+              editor.updateElement(element.id, {
+                sourcing: e.target.value === 'unspecified' ? undefined : (e.target.value as MapElement['sourcing']),
+              })
+            }
+            style={inputStyle}
+          >
+            <option value="unspecified">Not specified</option>
+            <option value="build">Build</option>
+            <option value="buy">Buy</option>
+            <option value="outsource">Outsource</option>
+          </select>
+        </div>
       </Section>
     </div>
   );
@@ -745,14 +845,220 @@ function EvolutionPanel({
           Evolution represents maturity in the market — not time elapsed, not adoption percentage, and not an objectively precise measurement. Treat it as a qualitative estimate.
         </p>
       </Section>
-      <Section label="Proposed movement">
-        <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: 0 }}>
-          Evolution movement arrows will be available in a future release.
-        </p>
-      </Section>
+      <ProposedMovement map={map} element={element} editor={editor} />
+      <PipelineSection map={map} element={element} editor={editor} />
     </div>
   );
 }
+
+/** EDT-06: evolve arrow — expected or proposed position, optional rename, rationale. */
+function ProposedMovement({
+  map,
+  element,
+  editor,
+}: {
+  map: WardleyMap;
+  element: MapElement;
+  editor: ReturnType<typeof useMapEditor>;
+}) {
+  const movement = map.evolutions.find((ev) => ev.elementId === element.id);
+  const update = (changes: Partial<EvolutionMovement>) =>
+    editor.patchMap({
+      evolutions: map.evolutions.map((ev) => (ev.id === movement!.id ? { ...ev, ...changes } : ev)),
+    });
+
+  if (!movement) {
+    return (
+      <Section label="Proposed movement">
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>
+          Record where you expect or propose {element.name} to move. This draws an evolve arrow.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            editor.patchMap({
+              evolutions: [
+                ...map.evolutions,
+                { id: generateId('ev'), elementId: element.id, targetEvolution: Math.min(1, Math.round((element.evolution + 0.2) * 100) / 100) },
+              ],
+            })
+          }
+          style={smallButtonStyle}
+        >
+          <Plus size={12} /> Add evolve arrow
+        </button>
+      </Section>
+    );
+  }
+
+  const stage = stageName(map, movement.targetEvolution);
+  return (
+    <Section label="Proposed movement">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <label htmlFor="evolve-target" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Target evolution (0–1) — {stage}
+        </label>
+        <input
+          id="evolve-target"
+          type="number"
+          min={0}
+          max={1}
+          step={0.01}
+          value={movement.targetEvolution}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (Number.isFinite(v)) update({ targetEvolution: Math.max(0, Math.min(1, v)) });
+          }}
+          style={inputStyle}
+        />
+        <CommitText
+          id="evolve-name"
+          label="New name after the move (optional)"
+          value={movement.targetName ?? ''}
+          onCommit={(targetName) => update({ targetName: targetName || undefined })}
+        />
+        <CommitText
+          id="evolve-rationale"
+          label="Rationale — why will it move?"
+          value={movement.rationale ?? ''}
+          onCommit={(rationale) => update({ rationale: rationale || undefined })}
+          multiline
+        />
+        <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: 0 }}>
+          An evolve arrow shows direction, not a date: evolution is not a calendar forecast.
+        </p>
+        <button
+          type="button"
+          onClick={() => editor.patchMap({ evolutions: map.evolutions.filter((ev) => ev.id !== movement.id) })}
+          style={{ ...smallButtonStyle, color: 'var(--error)' }}
+        >
+          <Trash2 size={12} /> Remove evolve arrow
+        </button>
+      </div>
+    </Section>
+  );
+}
+
+/** EDT-08: pipeline — a family of related components spanning a range of evolution. */
+function PipelineSection({
+  map,
+  element,
+  editor,
+}: {
+  map: WardleyMap;
+  element: MapElement;
+  editor: ReturnType<typeof useMapEditor>;
+}) {
+  const pipeline = map.pipelines.find((p) => p.parentElementId === element.id);
+  const update = (changes: Partial<Pipeline>) =>
+    editor.patchMap({ pipelines: map.pipelines.map((p) => (p.id === pipeline!.id ? { ...p, ...changes } : p)) });
+
+  if (!pipeline) {
+    return (
+      <Section label="Pipeline">
+        <button
+          type="button"
+          onClick={() =>
+            editor.patchMap({
+              pipelines: [
+                ...map.pipelines,
+                {
+                  id: generateId('pip'),
+                  parentElementId: element.id,
+                  memberElementIds: [],
+                  startEvolution: Math.max(0, Math.round((element.evolution - 0.15) * 100) / 100),
+                  endEvolution: Math.min(1, Math.round((element.evolution + 0.15) * 100) / 100),
+                },
+              ],
+            })
+          }
+          style={smallButtonStyle}
+        >
+          <Plus size={12} /> Make {element.name} a pipeline
+        </button>
+      </Section>
+    );
+  }
+
+  const candidates = map.elements.filter((el) => el.id !== element.id);
+  return (
+    <Section label="Pipeline">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {(['startEvolution', 'endEvolution'] as const).map((key) => (
+          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor={`pipeline-${key}`} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {key === 'startEvolution' ? 'From evolution' : 'To evolution'}
+            </label>
+            <input
+              id={`pipeline-${key}`}
+              type="number"
+              min={0}
+              max={1}
+              step={0.01}
+              value={pipeline[key]}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isFinite(v)) update({ [key]: Math.max(0, Math.min(1, v)) });
+              }}
+              style={inputStyle}
+            />
+          </div>
+        ))}
+      </div>
+      {candidates.length > 0 && (
+        <fieldset style={{ border: 'none', padding: 0, margin: '8px 0 0' }}>
+          <legend style={{ fontSize: 12, color: 'var(--text-muted)', padding: 0 }}>Members</legend>
+          {candidates.map((el) => (
+            <label key={el.id} style={{ display: 'flex', gap: 6, fontSize: 13, color: 'var(--text)' }}>
+              <input
+                type="checkbox"
+                checked={pipeline.memberElementIds.includes(el.id)}
+                onChange={(e) =>
+                  update({
+                    memberElementIds: e.target.checked
+                      ? [...pipeline.memberElementIds, el.id]
+                      : pipeline.memberElementIds.filter((x) => x !== el.id),
+                  })
+                }
+              />
+              {el.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '8px 0' }}>
+        Removing a pipeline never deletes its member components.
+      </p>
+      <button
+        type="button"
+        onClick={() => editor.patchMap({ pipelines: map.pipelines.filter((p) => p.id !== pipeline.id) })}
+        style={{ ...smallButtonStyle, color: 'var(--error)' }}
+      >
+        <Trash2 size={12} /> Remove pipeline
+      </button>
+    </Section>
+  );
+}
+
+function stageName(map: WardleyMap, evolution: number): string {
+  const [b0, b1, b2] = map.stageBoundaries;
+  const i = evolution < b0 ? 0 : evolution < b1 ? 1 : evolution < b2 ? 2 : 3;
+  return map.evolutionLabels[i];
+}
+
+const smallButtonStyle: React.CSSProperties = {
+  height: 28,
+  padding: '0 8px',
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'var(--bg-elevated)',
+  color: 'var(--text)',
+  fontSize: 13,
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+};
 
 // ---------------------------------------------------------------------------
 // Validation panel
@@ -1112,15 +1418,18 @@ function ClimateSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType<
 
   const handleAssess = (catalogId: string, state: PatternAssessment['state']) => {
     const existing = map.analysis.climate.find((a) => a.catalogId === catalogId);
-    const assessment: PatternAssessment = {
-      id: existing?.id ?? generateId('ca'),
-      catalogId,
-      appliesToIds: [],
-      state,
-      rationale: existing?.rationale ?? '',
-      evidenceIds: [],
-      confidence: existing?.confidence ?? 'medium',
-    };
+    // Changing the state must keep rationale, evidence and affected components
+    const assessment: PatternAssessment = existing
+      ? { ...existing, state }
+      : {
+          id: generateId('ca'),
+          catalogId,
+          appliesToIds: [],
+          state,
+          rationale: '',
+          evidenceIds: [],
+          confidence: 'medium',
+        };
     editor.upsertClimateAssessment(assessment);
   };
 
@@ -1146,6 +1455,7 @@ function ClimateSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType<
                 <button
                   key={s}
                   onClick={() => handleAssess(entry.id, s)}
+                  aria-pressed={assessment?.state === s}
                   style={{
                     height: 24,
                     padding: '0 8px',
@@ -1163,11 +1473,21 @@ function ClimateSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType<
                 </button>
               ))}
               {assessment && (
-                <button onClick={() => editor.removeClimateAssessment(assessment.id)} style={{ height: 24, padding: '0 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
+                <button onClick={() => editor.removeClimateAssessment(assessment.id)} aria-label={`Remove assessment of ${entry.shortTitle}`} style={{ height: 24, padding: '0 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
                   <X size={10} />
                 </button>
               )}
             </div>
+            {assessment && (
+              <AssessmentEditor
+                kind="climate"
+                assessment={assessment}
+                map={map}
+                onChange={editor.upsertClimateAssessment}
+                onAddEvidence={editor.addEvidence}
+                    onHighlight={editor.setHighlight}
+              />
+            )}
           </div>
         );
       })}
@@ -1184,17 +1504,18 @@ function DoctrineSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
 
   const handleAssess = (catalogId: string, capabilityState: DoctrineAssessment['capabilityState']) => {
     const existing = map.analysis.doctrine.find((a) => a.catalogId === catalogId);
-    const entry = DOCTRINE_CATALOG.find((e) => e.id === catalogId)!;
-    const assessment: DoctrineAssessment = {
-      id: existing?.id ?? generateId('da'),
-      catalogId,
-      appliesToIds: [],
-      state: 'applies',
-      rationale: existing?.rationale ?? '',
-      evidenceIds: [],
-      confidence: existing?.confidence ?? 'medium',
-      capabilityState,
-    };
+    const assessment: DoctrineAssessment = existing
+      ? { ...existing, capabilityState }
+      : {
+          id: generateId('da'),
+          catalogId,
+          appliesToIds: [],
+          state: 'applies',
+          rationale: '',
+          evidenceIds: [],
+          confidence: 'medium',
+          capabilityState,
+        };
     editor.upsertDoctrineAssessment(assessment);
   };
 
@@ -1227,6 +1548,7 @@ function DoctrineSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
                 <button
                   key={s}
                   onClick={() => handleAssess(entry.id, s)}
+                  aria-pressed={assessment?.capabilityState === s}
                   style={{
                     height: 22,
                     padding: '0 7px',
@@ -1244,11 +1566,32 @@ function DoctrineSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
                 </button>
               ))}
               {assessment && (
-                <button onClick={() => editor.removeDoctrineAssessment(assessment.id)} style={{ height: 22, padding: '0 5px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
+                <button onClick={() => editor.removeDoctrineAssessment(assessment.id)} aria-label={`Remove assessment of ${entry.shortTitle}`} style={{ height: 22, padding: '0 5px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
                   <X size={9} />
                 </button>
               )}
             </div>
+            {assessment && (
+              <>
+                <details style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <summary style={{ cursor: 'pointer' }}>Observable signals and counter-signals</summary>
+                  <p style={{ margin: '6px 0 2px', fontWeight: 600 }}>In practice when…</p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>{entry.observableSignals.map((x) => <li key={x}>{x}</li>)}</ul>
+                  <p style={{ margin: '6px 0 2px', fontWeight: 600 }}>Absent when…</p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>{entry.counterSignals.map((x) => <li key={x}>{x}</li>)}</ul>
+                  <p style={{ margin: '6px 0 2px', fontWeight: 600 }}>Reflect</p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>{entry.reflectionPrompts.map((x) => <li key={x}>{x}</li>)}</ul>
+                </details>
+                <AssessmentEditor
+                  kind="doctrine"
+                  assessment={assessment}
+                  map={map}
+                  onChange={editor.upsertDoctrineAssessment}
+                  onAddEvidence={editor.addEvidence}
+                    onHighlight={editor.setHighlight}
+                />
+              </>
+            )}
           </div>
         );
       })}
@@ -1280,6 +1623,9 @@ function GameplaySubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
       leadingSignals: [],
       risks: [...entry.risks],
       ethicalNotes: '',
+      stopConditions: [],
+      supportingIds: [],
+      humanReviewed: false,
     };
     editor.upsertGameplayHypothesis(hypothesis);
   };
@@ -1302,6 +1648,7 @@ function GameplaySubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
           <div key={entry.id} style={{ borderRadius: 8, border: `1px solid ${hypothesis ? 'var(--primary)' : 'var(--border)'}`, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
             <button
               onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+              aria-expanded={isExpanded}
               style={{ width: '100%', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
             >
               <div>
@@ -1327,10 +1674,25 @@ function GameplaySubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
                     {entry.ethicalReviewPrompts.map((p, i) => <li key={i} style={{ fontSize: 11, color: 'var(--warning)', lineHeight: 1.5 }}>{p}</li>)}
                   </ul>
                 </div>
+                {entry.caution && (
+                  <div role="note" style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--error)', background: 'var(--error-soft)', fontSize: 12, color: 'var(--text)' }}>
+                    <strong>Caution:</strong> {entry.caution}
+                  </div>
+                )}
                 {hypothesis ? (
                   <button onClick={() => editor.removeGameplayHypothesis(hypothesis.id)} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px solid var(--error)', background: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--error)' }}>Remove hypothesis</button>
                 ) : (
                   <button onClick={() => handleAddHypothesis(entry.id)} style={{ height: 26, padding: '0 10px', borderRadius: 6, border: 'none', background: 'var(--primary)', color: 'var(--text-on-primary)', cursor: 'pointer', fontSize: 11 }}>Add as hypothesis</button>
+                )}
+                {hypothesis && (
+                  <AssessmentEditor
+                    kind="gameplay"
+                    assessment={hypothesis}
+                    map={map}
+                    onChange={editor.upsertGameplayHypothesis}
+                    onAddEvidence={editor.addEvidence}
+                    onHighlight={editor.setHighlight}
+                  />
                 )}
               </div>
             )}
@@ -1381,13 +1743,25 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+/** Labels its control via htmlFor/id so the accessible name is exactly `label`. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const generatedId = React.useId();
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 };
+  // Several controls (e.g. slider plus scale captions): fall back to a group label
+  if (!React.isValidElement(children)) {
+    return (
+      <div role="group" aria-label={label}>
+        <span style={labelStyle}>{label}</span>
+        {children}
+      </div>
+    );
+  }
+  const child = children as React.ReactElement<{ id?: string }>;
+  const id = child.props.id ?? generatedId;
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
-        {label}
-      </div>
-      {children}
+      <label htmlFor={id} style={labelStyle}>{label}</label>
+      {React.cloneElement(child, { id })}
     </div>
   );
 }

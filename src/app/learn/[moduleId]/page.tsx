@@ -10,6 +10,8 @@ import { ArrowLeft, ChevronRight, BookOpen, Target, Lightbulb } from 'lucide-rea
 import { getModule, ALL_MODULES } from '@/learning/content';
 import { markModuleStarted, loadProgress } from '@/learning/progress';
 import ChallengeRunner from '@/components/learning/ChallengeRunner';
+import { markdownToHtml } from '@/learning/markdown';
+import { sanitizeUrl } from '@/parser/owm';
 
 interface Props {
   params: Promise<{ moduleId: string }>;
@@ -80,6 +82,14 @@ export default function ModulePage({ params }: Props) {
           </Link>
           <span style={{ color: 'var(--border-strong)', fontSize: 13 }}>/</span>
           <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>Module {mod.index}</span>
+          {mod.meta.reviewStatus === 'draft' && (
+            <span
+              title={`Version ${mod.meta.version}, last updated ${mod.meta.lastReviewed}. Content has not yet been reviewed by a subject-matter expert.`}
+              style={{ fontSize: 11, fontWeight: 650, padding: '0 7px', height: 20, display: 'inline-flex', alignItems: 'center', borderRadius: 999, border: '1px solid var(--warning)', color: 'var(--warning)' }}
+            >
+              Draft — awaiting expert review
+            </span>
+          )}
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--text)', margin: '0 0 4px' }}>
           {mod.title}
@@ -183,10 +193,10 @@ function LearnTab({
             Further reading
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {mod!.conceptLinks.map((link) => (
+            {mod!.conceptLinks.filter((link) => link.url && sanitizeUrl(link.url)).map((link) => (
               <a
                 key={link.id}
-                href={link.url}
+                href={sanitizeUrl(link.url!)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ fontSize: 13, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 6 }}
@@ -198,6 +208,21 @@ function LearnTab({
           </div>
         </div>
       )}
+
+      {/* Section 9.4 governance + CC BY-SA attribution */}
+      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 24px', lineHeight: 1.6 }}>
+        Sources:{' '}
+        {mod!.meta.sources.map((src, i) => (
+          <React.Fragment key={src.label}>
+            {i > 0 && '; '}
+            {src.url && sanitizeUrl(src.url) ? (
+              <a href={sanitizeUrl(src.url)!} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)' }}>{src.label}</a>
+            ) : src.label}
+          </React.Fragment>
+        ))}
+        . Licensed {mod!.meta.license}. Version {mod!.meta.version}, updated {mod!.meta.lastReviewed}
+        {mod!.meta.reviewer ? `, reviewed by ${mod!.meta.reviewer}` : ''}.
+      </p>
 
       {/* CTA */}
       <div style={{ marginTop: 24 }}>
@@ -278,31 +303,3 @@ function ExampleCard({ example }: { example: NonNullable<ReturnType<typeof getMo
 // Minimal safe Markdown→HTML (headings, bold, tables, paragraphs only)
 // ---------------------------------------------------------------------------
 
-function markdownToHtml(md: string): string {
-  let html = md
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    // Tables
-    .replace(/^\|(.+)\|\s*\n\|[-| ]+\|\s*\n((?:\|.+\|\s*\n)*)/gm, (_, header, rows) => {
-      const ths = header.split('|').filter(Boolean).map((c: string) => `<th>${c.trim()}</th>`).join('');
-      const trs = rows.trim().split('\n').map((row: string) =>
-        '<tr>' + row.split('|').filter(Boolean).map((c: string) => `<td>${c.trim()}</td>`).join('') + '</tr>'
-      ).join('');
-      return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
-    })
-    // Headings
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    // Bold+italic
-    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Code
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    // Paragraphs
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[htouc])(.+)$/gm, (line) => line.startsWith('<') ? line : line);
-
-  return `<p>${html}</p>`;
-}

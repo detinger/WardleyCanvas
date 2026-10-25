@@ -58,6 +58,8 @@ export interface EditorState {
   nudging: boolean;
   /** Document before an in-progress drag; the drag commits as one undo step */
   previewBase: WardleyMap | null;
+  /** Elements to call attention to on the canvas (e.g. the open assessment) */
+  highlightIds: Id[];
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +73,8 @@ type Action =
   | { type: 'MOVE_COMMIT'; id: Id; evolution: Normalized; visibility: Normalized }
   | { type: 'NUDGE'; dEvolution: number; dVisibility: number }
   | { type: 'DUPLICATE' }
+  | { type: 'PATCH_MAP'; changes: Partial<Pick<WardleyMap, 'evolutions' | 'pipelines' | 'annotations' | 'evolutionLabels' | 'stageBoundaries'>> }
+  | { type: 'SET_HIGHLIGHT'; ids: Id[] }
   | { type: 'ADD_ELEMENT'; element: MapElement }
   | { type: 'UPDATE_ELEMENT'; id: Id; changes: Partial<MapElement> }
   | { type: 'REMOVE_ELEMENTS'; ids: Id[] }
@@ -193,6 +197,12 @@ export function reducer(state: EditorState, action: Action): EditorState {
       return { ...withUpdatedMap(state, result.map), selectedIds: result.newIds };
     }
 
+    case 'PATCH_MAP':
+      return withUpdatedMap(state, { ...map, ...action.changes });
+
+    case 'SET_HIGHLIGHT':
+      return { ...state, highlightIds: action.ids };
+
     case 'ADD_ELEMENT':
       return withUpdatedMap(state, {
         ...map,
@@ -284,7 +294,7 @@ export function reducer(state: EditorState, action: Action): EditorState {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useMapEditor(initialMap: WardleyMap) {
+export function useMapEditor(initialMap: WardleyMap, options: { autosave?: boolean } = {}) {
   const [state, dispatch] = useReducer(reducer, null, () => ({
     stack: makeCommandStack(initialMap),
     selectedIds: [],
@@ -293,10 +303,14 @@ export function useMapEditor(initialMap: WardleyMap) {
     saveState: 'clean' as SaveState,
     nudging: false,
     previewBase: null,
+    highlightIds: [],
   }));
 
   const map = state.stack.present;
-  const autosaveEnabled = useRef(true);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  // Practice maps (learning challenges) must not write into the map draft store
+  const autosaveEnabled = useRef(options.autosave !== false);
 
   // Autosave when map changes
   useEffect(() => {
@@ -305,6 +319,24 @@ export function useMapEditor(initialMap: WardleyMap) {
       scheduleAutosave(map);
     }
   }, [map, state.saveState, state.previewBase]);
+
+  /** Add an element at a sensible default position and select it (keyboard creation). */
+  const placeElement = useCallback((kind: 'anchor' | 'component') => {
+    const count = stateRef.current.stack.present.elements.length;
+    const el: MapElement = {
+      id: generateId('el'),
+      kind,
+      name: kind === 'anchor' ? 'User' : `Component ${count + 1}`,
+      componentType: 'unspecified',
+      // Anchors at the top; components stepped down so they do not overlap
+      visibility: kind === 'anchor' ? 0.92 : Math.max(0.1, 0.75 - (count % 6) * 0.1),
+      evolution: kind === 'anchor' ? 0.5 : 0.35 + (count % 4) * 0.1,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el });
+    dispatch({ type: 'SELECT', ids: [el.id] });
+    dispatch({ type: 'SET_TOOL', tool: 'select' });
+    return el;
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -340,6 +372,14 @@ export function useMapEditor(initialMap: WardleyMap) {
           const dVisibility = e.key === 'ArrowUp' ? step : e.key === 'ArrowDown' ? -step : 0;
           dispatch({ type: 'NUDGE', dEvolution, dVisibility });
         }
+      } else if (!meta && !e.altKey && !e.shiftKey && ['s', 'h', 'a', 'c'].includes(e.key.toLowerCase())) {
+        // Tool shortcuts shown in the toolbar tooltips; A/C place an element immediately
+        // so creation never requires a pointer (EDT-03 keyboard parity)
+        const key = e.key.toLowerCase();
+        e.preventDefault();
+        if (key === 's') dispatch({ type: 'SET_TOOL', tool: 'select' });
+        else if (key === 'h') dispatch({ type: 'SET_TOOL', tool: 'pan' });
+        else placeElement(key === 'a' ? 'anchor' : 'component');
       } else if (e.key === 'Escape') {
         dispatch({ type: 'DESELECT' });
         dispatch({ type: 'SET_TOOL', tool: 'select' });
@@ -424,6 +464,17 @@ export function useMapEditor(initialMap: WardleyMap) {
 
   const duplicateSelected = useCallback(() => {
     dispatch({ type: 'DUPLICATE' });
+  }, []);
+
+  const patchMap = useCallback(
+    (changes: Partial<Pick<WardleyMap, 'evolutions' | 'pipelines' | 'annotations' | 'evolutionLabels' | 'stageBoundaries'>>) => {
+      dispatch({ type: 'PATCH_MAP', changes });
+    },
+    []
+  );
+
+  const setHighlight = useCallback((ids: Id[]) => {
+    dispatch({ type: 'SET_HIGHLIGHT', ids });
   }, []);
 
   const removeElements = useCallback((ids: Id[]) => {
@@ -560,6 +611,10 @@ export function useMapEditor(initialMap: WardleyMap) {
     commitMove,
     nudge,
     duplicateSelected,
+    patchMap,
+    placeElement,
+    setHighlight,
+    highlightIds: state.highlightIds,
     removeElements,
     createDependency,
     removeDependency,

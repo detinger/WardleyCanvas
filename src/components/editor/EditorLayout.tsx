@@ -20,12 +20,23 @@ import { useToast } from '@/hooks/use-toast';
 
 type EditorMode = 'visual' | 'split' | 'source';
 
-interface EditorLayoutProps {
-  initialMap: WardleyMap;
+/**
+ * Practice mode embeds the editor in a learning challenge: nothing is written
+ * to the map store, and the primary action is supplied by the host.
+ */
+export interface PracticeOptions {
+  onChange: (map: WardleyMap) => void;
+  primaryLabel: string;
+  onPrimary: () => void;
 }
 
-export default function EditorLayout({ initialMap }: EditorLayoutProps) {
-  const editor = useMapEditor(initialMap);
+interface EditorLayoutProps {
+  initialMap: WardleyMap;
+  practice?: PracticeOptions;
+}
+
+export default function EditorLayout({ initialMap, practice }: EditorLayoutProps) {
+  const editor = useMapEditor(initialMap, { autosave: !practice });
   const { map, state, saveState } = editor;
   const { toast } = useToast();
   const [editorMode, setEditorMode] = React.useState<EditorMode>('visual');
@@ -126,10 +137,17 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
   // Autosave on change (not on every pointer move of a drag in progress)
   const dragging = state.previewBase !== null;
   React.useEffect(() => {
+    if (practice) return;
     if (state.saveState === 'unsaved' && !dragging) {
       saveMap(map);
     }
-  }, [map, state.saveState, dragging]);
+  }, [map, state.saveState, dragging, practice]);
+
+  // Practice hosts receive every committed change instead
+  const onPracticeChange = practice?.onChange;
+  React.useEffect(() => {
+    if (onPracticeChange && !dragging) onPracticeChange(map);
+  }, [map, dragging, onPracticeChange]);
 
   return (
     <div
@@ -153,11 +171,19 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
         onUndo={editor.undo}
         onRedo={editor.redo}
         onDelete={() => editor.removeElements(editor.selectedIds)}
-        onSetTool={editor.setTool}
+        onSetTool={(tool, viaKeyboard) => {
+          if (viaKeyboard && (tool === 'add-anchor' || tool === 'add-component')) {
+            editor.placeElement(tool === 'add-anchor' ? 'anchor' : 'component');
+          } else {
+            editor.setTool(tool);
+          }
+        }}
         onFitMap={() => fitRef.current()}
         onZoomIn={() => zoomInRef.current()}
         onZoomOut={() => zoomOutRef.current()}
-        onSaveVersion={handleSaveVersion}
+        onSaveVersion={practice ? practice.onPrimary : handleSaveVersion}
+        variant={practice ? 'practice' : 'map'}
+        primaryLabel={practice?.primaryLabel}
         linkSourceId={editor.linkSourceId}
         editorMode={editorMode}
         onSetEditorMode={setEditorMode}
@@ -177,6 +203,7 @@ export default function EditorLayout({ initialMap }: EditorLayoutProps) {
             <CanvasRenderer
               map={map}
               selectedIds={editor.selectedIds}
+              highlightIds={editor.highlightIds}
               activeTool={editor.activeTool}
               linkSourceId={editor.linkSourceId}
               onElementClick={handleElementClick}

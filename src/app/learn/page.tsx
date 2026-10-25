@@ -6,7 +6,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import { CheckCircle, Lock, BookOpen, ChevronRight } from 'lucide-react';
 import { ALL_MODULES } from '@/learning/content';
-import { loadProgress } from '@/learning/progress';
+import { loadProgress, resetAllProgress } from '@/learning/progress';
+import { clearAllPracticeMaps } from '@/learning/practice';
 import { LearningModule, ModuleProgress } from '@/learning/types';
 
 export default function LearnPage() {
@@ -53,6 +54,8 @@ export default function LearnPage() {
           );
         })}
       </div>
+
+      <ProgressControls onReset={() => setProgressMap({})} />
 
       {/* Attribution */}
       <p style={{ marginTop: 40, fontSize: 12, color: 'var(--text-subtle)', maxWidth: '64ch' }}>
@@ -118,7 +121,7 @@ function ModuleCard({
         }}
       >
         {done ? (
-          <CheckCircle size={18} color="var(--success)" />
+          <CheckCircle size={18} color="var(--success)" aria-hidden="true" />
         ) : locked ? (
           <Lock size={15} color="var(--text-subtle)" />
         ) : (
@@ -165,6 +168,20 @@ function ModuleCard({
               In progress
             </span>
           )}
+          {done && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 650,
+                color: 'var(--success)',
+                background: 'var(--success-soft)',
+                borderRadius: 4,
+                padding: '1px 6px',
+              }}
+            >
+              Completed
+            </span>
+          )}
         </div>
         <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>
           {mod.tagline}
@@ -182,5 +199,62 @@ function ModuleCard({
     <Link href={`/learn/${mod.id}`} style={{ textDecoration: 'none', display: 'block' }}>
       {inner}
     </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section 9.3: progress can be exported or reset; it never touches map data
+// ---------------------------------------------------------------------------
+
+function ProgressControls({ onReset }: { onReset: () => void }) {
+  const [confirming, setConfirming] = React.useState(false);
+  const [status, setStatus] = React.useState('');
+
+  const exportProgress = () => {
+    const payload = { exportedAt: new Date().toISOString(), progress: loadProgress() };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wardley-learning-progress.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus('Progress exported.');
+  };
+
+  const reset = () => {
+    resetAllProgress();
+    clearAllPracticeMaps();
+    setConfirming(false);
+    setStatus('All learning progress and practice maps were reset. Your saved maps were not changed.');
+    onReset();
+  };
+
+  const button: React.CSSProperties = {
+    height: 34, padding: '0 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+    color: 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: 550,
+  };
+
+  return (
+    <section aria-labelledby="progress-controls-heading" style={{ marginTop: 32, maxWidth: 720 }}>
+      <h2 id="progress-controls-heading" style={{ fontSize: 15, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>Your progress</h2>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+        Progress is stored only in this browser and is kept separate from your maps.
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button type="button" onClick={exportProgress} style={button}>Export progress</button>
+        {confirming ? (
+          <>
+            <span style={{ fontSize: 13, color: 'var(--text)' }}>Reset all modules and practice maps?</span>
+            <button type="button" onClick={reset} style={{ ...button, borderColor: 'var(--error)', color: 'var(--error)' }}>Yes, reset</button>
+            <button type="button" onClick={() => setConfirming(false)} style={button}>Cancel</button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirming(true)} style={button}>Reset progress…</button>
+        )}
+      </div>
+      <p role="status" style={{ fontSize: 12, color: 'var(--text-subtle)', minHeight: 18, margin: '8px 0 0' }}>{status}</p>
+    </section>
   );
 }

@@ -36,6 +36,14 @@ export type ValidatorKind =
   | 'multi-stage'               // elements span more than one evolution stage
   | 'anchor-has-description'    // at least one anchor has a non-empty description
   | 'component-has-description' // at least one component has a description
+  | 'has-evolution-movement'    // at least N evolve arrows
+  | 'evolution-has-rationale'   // at least one evolve arrow explains why
+  | 'has-inertia'               // at least one component marked with inertia
+  | 'has-annotation'            // at least N notes/annotations
+  | 'has-climate-assessment'    // a climate pattern decided (not just "considering") with rationale
+  | 'has-doctrine-assessment'   // a doctrine principle assessed with rationale
+  | 'has-gameplay-hypothesis'   // a gameplay with rationale, a leading signal and a risk
+  | 'assessment-has-evidence'   // an assessment linked to an existing evidence record
   | 'custom';                   // custom predicate
 
 export interface ChallengeValidator {
@@ -47,6 +55,8 @@ export interface ChallengeValidator {
   description: string;
   /** Why this criterion matters */
   rationale: string;
+  /** One possible next move when the check fails (Section 9.3) */
+  nextStep?: string;
   /** Custom predicate for 'custom' kind */
   predicate?: (map: WardleyMap) => boolean;
 }
@@ -81,6 +91,36 @@ export interface ChallengeDefinition {
   hints: ChallengeHint[];
   rubric: RubricCriterion[];
   reflectionPrompts: string[];
+  /**
+   * One possible answer, shown only after completion with a note that
+   * alternatives may be equally valid. CI checks that it passes every validator.
+   */
+  sampleSolution?: {
+    explanation: string;
+    build: () => WardleyMap;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Content governance (Section 9.4)
+// ---------------------------------------------------------------------------
+
+export interface ContentSource {
+  label: string;
+  url?: string;
+}
+
+export interface ContentMeta {
+  /** Bump when the meaning of the content changes (not for typo fixes) */
+  version: number;
+  author: string;
+  /** Empty until a subject-matter reviewer signs off */
+  reviewer?: string;
+  reviewStatus: 'draft' | 'reviewed';
+  /** ISO date (YYYY-MM-DD) of the last review or authoring pass */
+  lastReviewed: string;
+  license: string;
+  sources: ContentSource[];
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +145,7 @@ export interface LearningModule {
   conceptLinks: ConceptLink[];
   /** If true, module is ready; false = coming-soon stub */
   published: boolean;
+  meta: ContentMeta;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { LearningModule } from '../types';
+import { solution, DRAFT_META } from './helpers';
 
 const module02: LearningModule = {
   id: 'components-value-chains',
@@ -7,6 +8,7 @@ const module02: LearningModule = {
   tagline: 'A value chain traces every dependency from user need to underlying capability.',
   conceptIds: ['component', 'value-chain', 'dependency', 'visibility'],
   published: true,
+  meta: { ...DRAFT_META, version: 1 },
 
   explanation: `
 ## What is a component?
@@ -191,6 +193,22 @@ anchor Customer [0.95, 0.10]
       'Which component would cause the most disruption if it failed?',
       'Are there any components you left out that you know exist but felt were "obvious"?',
     ],
+    sampleSolution: {
+      explanation:
+        'One possible value chain for an online grocery customer. Other decompositions are equally valid if each component serves the one above it.',
+      build: solution(`title Online groceries
+anchor Customer [0.95, 0.50]
+component Online Shop [0.82, 0.55]
+component Delivery [0.70, 0.45]
+component Product Catalogue [0.55, 0.40]
+component Payments [0.45, 0.80]
+component Compute [0.15, 0.90]
+Customer->Online Shop
+Customer->Delivery
+Online Shop->Product Catalogue
+Online Shop->Payments
+Product Catalogue->Compute`),
+    },
   },
 
   reflectionPrompts: [

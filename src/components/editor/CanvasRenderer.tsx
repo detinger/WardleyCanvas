@@ -47,6 +47,8 @@ function svgCoords(svg: SVGSVGElement, clientX: number, clientY: number) {
 interface CanvasRendererProps {
   map: WardleyMap;
   selectedIds: string[];
+  /** Elements called out by the open assessment (orange attention outline) */
+  highlightIds?: string[];
   activeTool: ActiveTool;
   linkSourceId: string | null;
   onElementClick: (id: Id, addToSelection: boolean) => void;
@@ -68,6 +70,7 @@ interface CanvasRendererProps {
 export default function CanvasRenderer({
   map,
   selectedIds,
+  highlightIds = [],
   activeTool,
   linkSourceId,
   onElementClick,
@@ -437,6 +440,7 @@ export default function CanvasRenderer({
           key={el.id}
           element={el}
           isSelected={selectedIds.includes(el.id)}
+          isHighlighted={highlightIds.includes(el.id)}
           isLinkSource={el.id === linkSourceId}
           activeTool={activeTool}
           onPointerDown={(e) => handleElementPointerDown(e, el)}
@@ -514,6 +518,7 @@ function DependencyLine({
 function MapElementShape({
   element,
   isSelected,
+  isHighlighted,
   isLinkSource,
   activeTool,
   onPointerDown,
@@ -521,6 +526,7 @@ function MapElementShape({
 }: {
   element: MapElement;
   isSelected: boolean;
+  isHighlighted: boolean;
   isLinkSource: boolean;
   activeTool: ActiveTool;
   onPointerDown: (e: React.PointerEvent) => void;
@@ -592,6 +598,20 @@ function MapElementShape({
         )
       )}
 
+      {/* Attention outline for the assessment being edited (Section 4.7: orange, not a component colour) */}
+      {isHighlighted && (
+        <rect
+          x={cx - ELEMENT_RADIUS - 8}
+          y={cy - ELEMENT_RADIUS - 8}
+          width={(ELEMENT_RADIUS + 8) * 2}
+          height={(ELEMENT_RADIUS + 8) * 2}
+          rx={6}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={2}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
       {/* Inertia indicator */}
       {element.inertia && (
         <circle

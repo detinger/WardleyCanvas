@@ -410,3 +410,21 @@ next-dev-indicator {
     display: none;
   }
 }
+
+/* Learning challenge: the editor needs a bounded box to lay out canvas + inspector */
+.practice-editor {
+  display: flex;
+  flex-direction: column;
+  height: min(720px, 85vh);
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+@media (max-width: 820px) {
+  .practice-editor {
+    height: auto;
+    min-height: 0;
+  }
+}

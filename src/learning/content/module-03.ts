@@ -1,4 +1,5 @@
 import { LearningModule } from '../types';
+import { solution, DRAFT_META } from './helpers';
 
 const module03: LearningModule = {
   id: 'visibility-evolution',
@@ -7,6 +8,7 @@ const module03: LearningModule = {
   tagline: 'Position tells you where a component is now — not where it should be.',
   conceptIds: ['visibility', 'evolution', 'genesis', 'commodity', 'stage'],
   published: true,
+  meta: { ...DRAFT_META, version: 2 },
 
   explanation: `
 ## The two axes
@@ -120,6 +122,11 @@ anchor User [0.95, 0.10]
         instruction:
           'Connect everything into a value chain. Make sure at least one component is left-of-centre (genesis or custom) and one is right-of-centre (product or commodity).',
       },
+      {
+        id: 's5',
+        instruction:
+          'Choose the placement you are least sure about and write down why you put it there in that component\'s Description.',
+      },
     ],
     validators: [
       {
@@ -148,6 +155,15 @@ anchor User [0.95, 0.10]
         description: 'Components span at least 2 evolution stages',
         rationale:
           'The whole point of this challenge is to use the evolution axis. A map with all components in one stage misses the key insight.',
+        nextStep: 'Drag a component left or right, or set its Evolution value in the inspector.',
+      },
+      {
+        id: 'v5-placement-rationale',
+        kind: 'component-has-description',
+        description: 'At least one placement has a recorded rationale',
+        rationale:
+          'Evolution positions are judgements. Writing down why you placed a debatable component where you did makes the assumption visible and open to challenge.',
+        nextStep: 'Pick the component you were least sure about, select it and explain its position in the Description field.',
       },
     ],
     hints: [
@@ -185,6 +201,26 @@ anchor User [0.95, 0.10]
       'If a competitor used commodity versions of your custom components, how would that change the landscape?',
       'Are there any components where reasonable people might disagree on the stage? Why?',
     ],
+    sampleSolution: {
+      explanation:
+        'One possible positioning. Evolution is a judgement about market maturity: a different context can justify different positions, which is why the rationale matters.',
+      build: solution(
+        `title Ride hailing
+anchor Rider [0.95, 0.60]
+component Booking App [0.82, 0.55]
+component Matching Algorithm [0.60, 0.25]
+component Maps [0.45, 0.70]
+component Cloud Hosting [0.15, 0.88]
+Rider->Booking App
+Booking App->Matching Algorithm
+Booking App->Maps
+Matching Algorithm->Cloud Hosting`,
+        (map, id) => {
+          map.elements.find((e) => e.id === id('Matching Algorithm'))!.description =
+            'Placed in Custom Built: we tune it ourselves, but several vendors now sell similar engines, so it may be moving towards Product.';
+        }
+      ),
+    },
   },
 
   reflectionPrompts: [

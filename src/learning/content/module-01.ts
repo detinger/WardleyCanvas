@@ -1,4 +1,5 @@
 import { LearningModule } from '../types';
+import { solution, DRAFT_META } from './helpers';
 
 const module01: LearningModule = {
   id: 'purpose-users-needs',
@@ -7,6 +8,7 @@ const module01: LearningModule = {
   tagline: 'Every useful map starts with who has a need — not with a solution.',
   conceptIds: ['anchor', 'user-need', 'value-chain-top'],
   published: true,
+  meta: { ...DRAFT_META, version: 1 },
 
   explanation: `
 ## Why start with the user?
@@ -105,6 +107,7 @@ anchor User [0.95, 0.10]`,
         description: 'Map has at least one anchor (user/stakeholder)',
         rationale:
           'Every Wardley Map needs an anchor to express whose need is being served. Without one, the map has no defined purpose.',
+        nextStep: 'Add an anchor with the toolbar (A) and name it after a real role, such as "Nurse" or "Online shopper".',
       },
       {
         id: 'v2-has-components',
@@ -113,6 +116,7 @@ anchor User [0.95, 0.10]`,
         description: 'Map has at least 2 components',
         rationale:
           'A value chain needs at least two levels to show that needs depend on other things.',
+        nextStep: 'Add a component the user directly experiences, then one it relies on.',
       },
       {
         id: 'v3-has-dependency',
@@ -121,6 +125,7 @@ anchor User [0.95, 0.10]`,
         description: 'At least one dependency connects elements',
         rationale:
           'Dependencies show what depends on what. Without them the map is just a list.',
+        nextStep: 'Select the anchor, open the Connections tab and choose what it depends on.',
       },
       {
         id: 'v4-is-connected',
@@ -128,6 +133,7 @@ anchor User [0.95, 0.10]`,
         description: 'All elements are reachable from the anchor',
         rationale:
           'Every component should serve the user\'s need — directly or indirectly. Isolated components suggest scope that hasn\'t been explained.',
+        nextStep: 'Connect each loose component to something above it, or remove it if it is out of scope.',
       },
       {
         id: 'v5-anchor-description',
@@ -135,6 +141,7 @@ anchor User [0.95, 0.10]`,
         description: 'The anchor has a description explaining the user need',
         rationale:
           'Writing the need in words forces you to be specific. "User needs a dashboard" is weaker than "User needs to answer operational questions in under 2 minutes without calling the team".',
+        nextStep: 'Select the anchor and complete its Description: "This person is trying to…".',
       },
     ],
     hints: [
@@ -177,6 +184,24 @@ anchor User [0.95, 0.10]`,
       'Is there anything in your value chain that the user directly sees, but you placed lower on the map? Why?',
       'Who else might have a need served by parts of this same value chain?',
     ],
+    sampleSolution: {
+      explanation:
+        'One possible map: a commuter whose need is a reliable morning coffee. Your map can be entirely different and still be valid.',
+      build: solution(
+        `title Morning coffee
+anchor Commuter [0.95, 0.40]
+component Cup of Coffee [0.80, 0.45]
+component Coffee Machine [0.55, 0.60]
+component Power [0.20, 0.90]
+Commuter->Cup of Coffee
+Cup of Coffee->Coffee Machine
+Coffee Machine->Power`,
+        (map, id) => {
+          map.elements.find((e) => e.id === id('Commuter'))!.description =
+            'Is trying to get a reliable coffee on the way to work in under five minutes.';
+        }
+      ),
+    },
   },
 
   reflectionPrompts: [

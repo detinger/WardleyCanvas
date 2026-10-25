@@ -1,20 +1,13 @@
 'use client';
 
-// LRN-03: Challenge runner — embedded OWM editor, validator feedback, hints, reflection.
+// LRN-03/05: Challenge runner — the real map editor in practice mode, validator
+// feedback (what, why, one next move), progressive hints, reflection, and an
+// example answer revealed only after completion.
 
 import * as React from 'react';
-import {
-  CheckCircle,
-  XCircle,
-  Lightbulb,
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Trophy,
-  BookOpen,
-} from 'lucide-react';
-import { LearningModule, ValidatorResult } from '@/learning/types';
-import { runChallenge } from '@/learning/validators';
+import { CheckCircle, XCircle, Lightbulb, RotateCcw, Trophy, BookOpen } from 'lucide-react';
+import { LearningModule, ValidatorResult, ChallengeValidator } from '@/learning/types';
+import { runChallenge, defaultNextStep } from '@/learning/validators';
 import {
   getModuleProgress,
   recordChallengeAttempt,
@@ -23,8 +16,10 @@ import {
   saveReflection,
   resetModuleProgress,
 } from '@/learning/progress';
+import { loadPracticeMap, savePracticeMap, clearPracticeMap } from '@/learning/practice';
 import { parseOWM, serializeOWM } from '@/parser/owm';
-import { WardleyMap } from '@/domain/types';
+import { WardleyMap, makeNewMap } from '@/domain/types';
+import EditorLayout from '@/components/editor/EditorLayout';
 
 interface Props {
   module: LearningModule;
@@ -33,74 +28,59 @@ interface Props {
 
 type Phase = 'challenge' | 'reflection' | 'done';
 
+function starterMap(mod: LearningModule): WardleyMap {
+  const id = `practice-${mod.id}`;
+  if (mod.challenge.starterOwm) {
+    const parsed = parseOWM(mod.challenge.starterOwm, id);
+    if (!parsed.hasErrors) return parsed.map;
+  }
+  return makeNewMap(id, `${mod.title} practice`);
+}
+
 export default function ChallengeRunner({ module: mod, onComplete }: Props) {
   const ch = mod.challenge;
 
-  // --- state ---
-  const [owmSource, setOwmSource] = React.useState(
-    ch.starterOwm ?? `title ${mod.title} practice\n\nanchor User [0.95, 0.10]\n`
-  );
-  const [map, setMap] = React.useState<WardleyMap | null>(null);
+  // The practice map lives outside the editor so a check always sees the latest edit
+  const [initialMap, setInitialMap] = React.useState<WardleyMap>(() => loadPracticeMap(mod.id) ?? starterMap(mod));
+  const [editorKey, setEditorKey] = React.useState(0);
+  const mapRef = React.useRef<WardleyMap>(initialMap);
   const [results, setResults] = React.useState<ValidatorResult[] | null>(null);
   const [allPassed, setAllPassed] = React.useState(false);
-  const [phase, setPhase] = React.useState<Phase>('challenge');
-  const [revealedHints, setRevealedHints] = React.useState<Set<number>>(() => {
-    const mp = getModuleProgress(mod.id);
-    return new Set(mp.revealedHintLevels);
-  });
-  const [reflection, setReflection] = React.useState(() => {
-    return getModuleProgress(mod.id).reflectionNotes;
-  });
-  const [parseError, setParseError] = React.useState('');
+  const [phase, setPhase] = React.useState<Phase>(() => (getModuleProgress(mod.id).completedAt ? 'done' : 'challenge'));
+  const [revealedHints, setRevealedHints] = React.useState<Set<number>>(
+    () => new Set(getModuleProgress(mod.id).revealedHintLevels)
+  );
+  const [reflection, setReflection] = React.useState(() => getModuleProgress(mod.id).reflectionNotes);
   const [announcement, setAnnouncement] = React.useState('');
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const resultsRef = React.useRef<HTMLDivElement>(null);
 
-  // Seed map from starter OWM on mount
-  React.useEffect(() => {
-    const result = parseOWM(owmSource);
-    if (!result.hasErrors) setMap(result.map);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Parse on source change (debounced)
-  const handleSourceChange = React.useCallback((text: string) => {
-    setOwmSource(text);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const result = parseOWM(text);
-      if (result.hasErrors) {
-        setParseError(result.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message).join('; '));
-      } else {
-        setParseError('');
-        setMap(result.map);
-      }
-    }, 400);
-  }, []);
+  const handleMapChange = React.useCallback((map: WardleyMap) => {
+    mapRef.current = map;
+    savePracticeMap(mod.id, map);
+  }, [mod.id]);
 
   const handleCheck = React.useCallback(() => {
-    if (!map) return;
-    const cr = runChallenge(ch, map);
+    const cr = runChallenge(ch, mapRef.current);
     setResults(cr.results);
     recordChallengeAttempt(mod.id, cr.results.filter((r) => r.passed).map((r) => r.validatorId));
     if (cr.allPassed) {
       setAllPassed(true);
       markModuleComplete(mod.id);
-      setAnnouncement('All checks passed! You can now continue to the reflection section.');
-      setPhase('reflection');
+      setAnnouncement('All checks passed. You can continue to the reflection.');
       onComplete();
     } else {
-      const failCount = cr.results.filter((r) => !r.passed).length;
-      setAnnouncement(`${cr.passCount} of ${cr.totalCount} checks passed. ${failCount} still to fix.`);
-      // Move focus to results so keyboard/screen-reader users see them immediately
-      setTimeout(() => resultsRef.current?.focus(), 50);
+      setAllPassed(false);
+      const failCount = cr.totalCount - cr.passCount;
+      setAnnouncement(`${cr.passCount} of ${cr.totalCount} checks passed. ${failCount} still to do.`);
     }
-  }, [map, ch, mod.id, onComplete]);
+    // Move focus to results so keyboard and screen-reader users land on the feedback
+    setTimeout(() => resultsRef.current?.focus(), 50);
+  }, [ch, mod.id, onComplete]);
 
   const handleRevealHint = React.useCallback((level: number) => {
     revealHint(mod.id, level);
     setRevealedHints((prev) => new Set([...prev, level]));
+    setAnnouncement(`Hint ${level} revealed.`);
   }, [mod.id]);
 
   const handleSaveReflection = React.useCallback(() => {
@@ -111,180 +91,81 @@ export default function ChallengeRunner({ module: mod, onComplete }: Props) {
 
   const handleReset = React.useCallback(() => {
     resetModuleProgress(mod.id);
-    setOwmSource(ch.starterOwm ?? `title ${mod.title} practice\n\nanchor User [0.95, 0.10]\n`);
+    clearPracticeMap(mod.id);
+    const fresh = starterMap(mod);
+    mapRef.current = fresh;
+    setInitialMap(fresh);
+    setEditorKey((k) => k + 1);
     setResults(null);
     setAllPassed(false);
     setPhase('challenge');
     setRevealedHints(new Set());
     setReflection('');
-    setParseError('');
-    const r = parseOWM(ch.starterOwm ?? '');
-    if (!r.hasErrors) setMap(r.map);
-  }, [mod.id, mod.title, ch.starterOwm]);
+    setAnnouncement('Challenge reset to the starter map.');
+    onComplete();
+  }, [mod, onComplete]);
 
-  // Next hint level to reveal
-  const maxHintLevel = ch.hints.length > 0 ? Math.max(...ch.hints.map((h) => h.level)) : 0;
-  const nextHintLevel = Array.from({ length: maxHintLevel }, (_, i) => i + 1).find(
-    (l) => !revealedHints.has(l)
-  );
+  const maxHintLevel = ch.hints.length;
+  const nextHintLevel = ch.hints.map((h) => h.level).find((l) => !revealedHints.has(l));
 
   if (phase === 'done') {
-    return <CompletionBanner moduleTitle={mod.title} onReset={handleReset} />;
+    return <CompletionBanner module={mod} onReset={handleReset} />;
   }
 
   return (
     <div>
-      {/* LRN-05: Visually-hidden live region for screen-reader announcements */}
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          padding: 0,
-          margin: -1,
-          overflow: 'hidden',
-          clip: 'rect(0,0,0,0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-      >
+      {/* LRN-05: polite live region for check results and hints */}
+      <div role="status" aria-live="polite" aria-atomic="true" style={visuallyHidden}>
         {announcement}
       </div>
 
-      {/* Challenge header */}
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>
-          {ch.title}
-        </h2>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
-          {ch.objective}
-        </p>
+        <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>{ch.title}</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>{ch.objective}</p>
       </div>
 
-      {/* Instructions */}
       {ch.instructions.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 12, fontWeight: 650, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>
-            Steps
-          </h3>
+          <h3 style={sectionHeading}>Steps</h3>
           <ol style={{ margin: 0, padding: '0 0 0 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {ch.instructions.map((step) => (
-              <li key={step.id} style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>
-                {step.instruction}
-              </li>
+              <li key={step.id} style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{step.instruction}</li>
             ))}
           </ol>
         </div>
       )}
 
-      {/* OWM editor */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <label
-            htmlFor="challenge-owm-editor"
-            style={{ fontSize: 12, fontWeight: 650, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}
-          >
-            Your map (OWM source)
-          </label>
-          {parseError && (
-            <span style={{ fontSize: 11, color: 'var(--error)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <XCircle size={11} /> {parseError}
-            </span>
-          )}
+      {/* The real editor in practice mode: nothing is saved to your maps */}
+      <section aria-label="Practice map editor" style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 6px' }}>
+          Practice map — kept separately from your saved maps. Use the visual editor, the inspector or the source view.
+        </p>
+        <div className="practice-editor">
+          <EditorLayout
+            key={editorKey}
+            initialMap={initialMap}
+            practice={{ onChange: handleMapChange, primaryLabel: 'Check my map', onPrimary: handleCheck }}
+          />
         </div>
-        <textarea
-          id="challenge-owm-editor"
-          ref={textareaRef}
-          value={owmSource}
-          onChange={(e) => handleSourceChange(e.target.value)}
-          spellCheck={false}
-          aria-label="OWM challenge editor"
-          style={{
-            width: '100%',
-            minHeight: 220,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 13,
-            lineHeight: 1.6,
-            padding: '10px 12px',
-            borderRadius: 8,
-            border: `1px solid ${parseError ? 'var(--error)' : 'var(--border)'}`,
-            background: 'var(--bg)',
-            color: 'var(--text)',
-            resize: 'vertical',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
+      </section>
 
-      {/* Action row */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24 }}>
-        <button
-          onClick={handleCheck}
-          disabled={!map || !!parseError}
-          style={{
-            height: 38,
-            padding: '0 18px',
-            borderRadius: 8,
-            background: 'var(--primary)',
-            color: 'var(--text-on-primary)',
-            border: 'none',
-            cursor: !map || !!parseError ? 'not-allowed' : 'pointer',
-            opacity: !map || !!parseError ? 0.5 : 1,
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          Check my map
-        </button>
-
-        {nextHintLevel && (
-          <button
-            onClick={() => handleRevealHint(nextHintLevel)}
-            style={{
-              height: 38,
-              padding: '0 14px',
-              borderRadius: 8,
-              background: 'none',
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-              fontSize: 13,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Lightbulb size={13} />
-            Hint ({nextHintLevel} of {maxHintLevel})
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 24 }}>
+        {nextHintLevel !== undefined && (
+          <button onClick={() => handleRevealHint(nextHintLevel)} style={secondaryButton}>
+            <Lightbulb size={13} /> Hint ({nextHintLevel} of {maxHintLevel})
           </button>
         )}
+        <button onClick={handleReset} style={secondaryButton}>
+          <RotateCcw size={13} /> Start over
+        </button>
       </div>
 
-      {/* Revealed hints */}
       {revealedHints.size > 0 && (
         <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {ch.hints
             .filter((h) => revealedHints.has(h.level))
-            .sort((a, b) => a.level - b.level)
             .map((h) => (
-              <div
-                key={h.level}
-                role="note"
-                aria-label={`Hint ${h.level}`}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  gap: 10,
-                  alignItems: 'flex-start',
-                }}
-              >
+              <div key={h.level} role="note" aria-label={`Hint ${h.level}`} style={hintBox}>
                 <Lightbulb size={14} color="var(--primary)" style={{ flexShrink: 0, marginTop: 2 }} />
                 <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{h.text}</span>
               </div>
@@ -292,29 +173,12 @@ export default function ChallengeRunner({ module: mod, onComplete }: Props) {
         </div>
       )}
 
-      {/* Validator results */}
       {results && (
         <div ref={resultsRef} tabIndex={-1} style={{ marginBottom: 24, outline: 'none' }}>
-          <ValidatorPanel results={results} allPassed={allPassed} />
-          {allPassed && (
+          <ValidatorPanel results={results} validators={ch.validators} allPassed={allPassed} />
+          {allPassed && phase === 'challenge' && (
             <div style={{ marginTop: 12 }}>
-              <button
-                onClick={() => setPhase('reflection')}
-                style={{
-                  height: 38,
-                  padding: '0 18px',
-                  borderRadius: 8,
-                  background: 'var(--success)',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
+              <button onClick={() => setPhase('reflection')} style={primaryButton}>
                 <BookOpen size={15} /> Continue to reflection
               </button>
             </div>
@@ -322,7 +186,6 @@ export default function ChallengeRunner({ module: mod, onComplete }: Props) {
         </div>
       )}
 
-      {/* Reflection phase */}
       {phase === 'reflection' && (
         <ReflectionSection
           prompts={ch.reflectionPrompts}
@@ -337,20 +200,24 @@ export default function ChallengeRunner({ module: mod, onComplete }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Validator results panel
+// Validator results panel — Section 9.3: issue, why it matters, one next move
 // ---------------------------------------------------------------------------
 
-function ValidatorPanel({ results, allPassed }: { results: ValidatorResult[]; allPassed: boolean }) {
+function ValidatorPanel({
+  results,
+  validators,
+  allPassed,
+}: {
+  results: ValidatorResult[];
+  validators: ChallengeValidator[];
+  allPassed: boolean;
+}) {
+  const passCount = results.filter((r) => r.passed).length;
   return (
     <div
       role="region"
-      aria-label="Validation results"
-      aria-live="polite"
-      style={{
-        border: `1px solid ${allPassed ? 'var(--success)' : 'var(--border)'}`,
-        borderRadius: 10,
-        overflow: 'hidden',
-      }}
+      aria-label="Check results"
+      style={{ border: `1px solid ${allPassed ? 'var(--success)' : 'var(--border)'}`, borderRadius: 10, overflow: 'hidden' }}
     >
       <div
         style={{
@@ -360,48 +227,41 @@ function ValidatorPanel({ results, allPassed }: { results: ValidatorResult[]; al
           display: 'flex',
           alignItems: 'center',
           gap: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          color: allPassed ? 'var(--success)' : 'var(--text)',
         }}
       >
-        {allPassed ? (
-          <CheckCircle size={15} color="var(--success)" />
-        ) : (
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            {results.filter((r) => r.passed).length} / {results.length} passed
-          </span>
-        )}
-        <span style={{ fontSize: 13, fontWeight: allPassed ? 600 : 400, color: allPassed ? 'var(--success)' : 'var(--text)' }}>
-          {allPassed ? 'All checks passed!' : 'Validator results'}
-        </span>
+        {allPassed ? <CheckCircle size={15} /> : null}
+        {allPassed ? 'All checks passed' : `${passCount} of ${results.length} checks passed`}
       </div>
-      <div>
-        {results.map((r) => (
-          <div
-            key={r.validatorId}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
-              padding: '9px 14px',
-              borderBottom: '1px solid var(--border-subtle)',
-            }}
-          >
-            {r.passed ? (
-              <CheckCircle size={15} color="var(--success)" style={{ flexShrink: 0, marginTop: 1 }} />
-            ) : (
-              <XCircle size={15} color="var(--error)" style={{ flexShrink: 0, marginTop: 1 }} />
-            )}
-            <span
-              style={{
-                fontSize: 13,
-                color: r.passed ? 'var(--text)' : 'var(--error)',
-                lineHeight: 1.5,
-              }}
-            >
-              {r.message}
-            </span>
-          </div>
-        ))}
-      </div>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {results.map((r) => {
+          const v = validators.find((x) => x.id === r.validatorId);
+          return (
+            <li key={r.validatorId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+              {r.passed ? (
+                <CheckCircle size={15} color="var(--success)" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+              ) : (
+                <XCircle size={15} color="var(--error)" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+              )}
+              <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                <div style={{ color: 'var(--text)' }}>
+                  <strong>{r.passed ? 'Done: ' : 'To do: '}</strong>
+                  {v?.description ?? r.message}
+                </div>
+                {!r.passed && (
+                  <>
+                    <div style={{ color: 'var(--text-muted)' }}>{r.message}.</div>
+                    {v && <div style={{ color: 'var(--text-muted)' }}><strong>Why it matters:</strong> {v.rationale}</div>}
+                    {v && <div style={{ color: 'var(--text-muted)' }}><strong>Try:</strong> {v.nextStep ?? defaultNextStep(v.kind)}</div>}
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -516,45 +376,58 @@ function ReflectionSection({
 }
 
 // ---------------------------------------------------------------------------
-// Completion banner
+// Completion banner — with one possible answer, never shown before completion
 // ---------------------------------------------------------------------------
 
-function CompletionBanner({ moduleTitle, onReset }: { moduleTitle: string; onReset: () => void }) {
+function CompletionBanner({ module: mod, onReset }: { module: LearningModule; onReset: () => void }) {
+  const sample = mod.challenge.sampleSolution;
+  const sampleOwm = React.useMemo(() => (sample ? serializeOWM(sample.build()) : ''), [sample]);
   return (
-    <div
-      style={{
-        textAlign: 'center',
-        padding: '40px 24px',
-        border: '1px solid var(--success)',
-        borderRadius: 12,
-        background: 'var(--success-soft)',
-      }}
-    >
-      <Trophy size={32} color="var(--success)" style={{ marginBottom: 12 }} />
-      <h2 style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>
-        Module complete!
-      </h2>
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
-        You've completed "{moduleTitle}". Move on to the next module or revisit anytime.
-      </p>
-      <button
-        onClick={onReset}
-        style={{
-          height: 34,
-          padding: '0 14px',
-          borderRadius: 8,
-          background: 'none',
-          color: 'var(--text-muted)',
-          border: '1px solid var(--border)',
-          cursor: 'pointer',
-          fontSize: 13,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
+    <div>
+      <div
+        role="status"
+        style={{ textAlign: 'center', padding: '32px 24px', border: '1px solid var(--success)', borderRadius: 12, background: 'var(--success-soft)', marginBottom: 16 }}
       >
-        <RotateCcw size={13} /> Reset and retry
-      </button>
+        <Trophy size={32} color="var(--success)" style={{ marginBottom: 12 }} aria-hidden="true" />
+        <h2 style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>Module complete</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
+          You completed “{mod.title}”. Your objective checks and your reflection are recorded separately.
+        </p>
+        <button onClick={onReset} style={{ ...secondaryButton, display: 'inline-flex' }}>
+          <RotateCcw size={13} /> Reset and try again
+        </button>
+      </div>
+      {sample && (
+        <details style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            Compare with one possible answer
+          </summary>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55 }}>{sample.explanation}</p>
+          <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', padding: 12, borderRadius: 6, overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+            {sampleOwm}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const visuallyHidden: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+};
+const sectionHeading: React.CSSProperties = {
+  fontSize: 12, fontWeight: 650, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px',
+};
+const primaryButton: React.CSSProperties = {
+  height: 38, padding: '0 18px', borderRadius: 8, background: 'var(--primary)', color: 'var(--text-on-primary)', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
+};
+const secondaryButton: React.CSSProperties = {
+  height: 34, padding: '0 14px', borderRadius: 8, background: 'none', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6,
+};
+const hintBox: React.CSSProperties = {
+  display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 6, background: 'var(--primary-soft)', border: '1px solid var(--border)',
+};

@@ -40,7 +40,8 @@ interface EditorToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
-  onSetTool: (tool: ActiveTool) => void;
+  /** viaKeyboard: activated without a pointer, so tools that need a canvas click act immediately */
+  onSetTool: (tool: ActiveTool, viaKeyboard?: boolean) => void;
   onFitMap: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -51,6 +52,10 @@ interface EditorToolbarProps {
   onImport: () => void;
   onExport: () => void;
   mapId: string;
+  /** 'practice' hides map-only controls (back, save state, scenarios) */
+  variant?: 'map' | 'practice';
+  /** Label for the primary action; defaults to "Save version" */
+  primaryLabel?: string;
 }
 
 export default function EditorToolbar({
@@ -74,7 +79,10 @@ export default function EditorToolbar({
   onImport,
   onExport,
   mapId,
+  variant = 'map',
+  primaryLabel,
 }: EditorToolbarProps) {
+  const isPractice = variant === 'practice';
   const router = useRouter();
 
   return (
@@ -95,11 +103,13 @@ export default function EditorToolbar({
       }}
     >
       {/* Group 1: back + title + save state */}
-      <ToolbarButton
-        icon={<ArrowLeft size={16} />}
-        label="Back to maps"
-        onClick={() => router.push('/maps')}
-      />
+      {!isPractice && (
+        <ToolbarButton
+          icon={<ArrowLeft size={16} />}
+          label="Back to maps"
+          onClick={() => router.push('/maps')}
+        />
+      )}
       <div
         style={{
           padding: '0 8px',
@@ -115,7 +125,7 @@ export default function EditorToolbar({
       >
         {title || 'Untitled Map'}
       </div>
-      <SaveIndicator state={saveState} />
+      {!isPractice && <SaveIndicator state={saveState} />}
 
       <Divider />
 
@@ -140,13 +150,13 @@ export default function EditorToolbar({
         icon={<Anchor size={16} />}
         label="Add anchor/user (A)"
         active={activeTool === 'add-anchor'}
-        onClick={() => onSetTool('add-anchor')}
+        onClick={(e) => onSetTool('add-anchor', e.detail === 0)}
       />
       <ToolbarButton
         icon={<Circle size={16} />}
         label="Add component (C)"
         active={activeTool === 'add-component'}
-        onClick={() => onSetTool('add-component')}
+        onClick={(e) => onSetTool('add-component', e.detail === 0)}
       />
       <ToolbarButton
         icon={<Link2 size={16} />}
@@ -232,11 +242,13 @@ export default function EditorToolbar({
       <Divider />
 
       {/* Group 8: scenarios */}
-      <ToolbarButton
-        icon={<GitBranch size={16} />}
-        label="Scenario comparison"
-        onClick={() => router.push(`/maps/${mapId}/scenarios`)}
-      />
+      {!isPractice && (
+        <ToolbarButton
+          icon={<GitBranch size={16} />}
+          label="Scenario comparison"
+          onClick={() => router.push(`/maps/${mapId}/scenarios`)}
+        />
+      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
@@ -267,8 +279,8 @@ export default function EditorToolbar({
           (e.currentTarget as HTMLButtonElement).style.background = 'var(--primary)';
         }}
       >
-        <Save size={14} />
-        Save version
+        {!isPractice && <Save size={14} />}
+        {primaryLabel ?? 'Save version'}
       </button>
     </div>
   );
@@ -290,7 +302,7 @@ function ToolbarButton({
   label: string;
   active?: boolean;
   disabled?: boolean;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   highlight?: boolean;
 }) {
   return (

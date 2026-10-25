@@ -27,6 +27,8 @@ export interface GameplayCatalogEntry {
   counterplays: string[];
   /** Ethical and legal review prompts — required field */
   ethicalReviewPrompts: string[];
+  /** Shown beside sensitive plays (competition law, manipulation, harm) */
+  caution?: string;
   attribution: string;
 }
 
@@ -166,6 +168,8 @@ export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = [
       'Are network effects here consistent with competition and consumer protection law?',
       'Does this disadvantage smaller or newer competitors unfairly?',
     ],
+    caution:
+      'Network effects can lock users in. Check that users can leave with their data and that the play does not rely on deceptive design or on suppressing interoperability.',
     attribution: ATTR,
   },
 
@@ -195,6 +199,8 @@ export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = [
       'Could this be interpreted as anti-competitive behaviour in your jurisdiction?',
       'Does this harm users or smaller competitors in ways that are disproportionate?',
     ],
+    caution:
+      'Raising barriers can breach competition law (for example exclusive dealing, tying or abuse of a dominant position) and can harm users by reducing choice. Take legal advice before acting.',
     attribution: ATTR,
   },
 
@@ -278,6 +284,8 @@ export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = [
       'Are non-compete clauses being used in ways that restrict individuals\' livelihood?',
       'Is this acquisition fair to the individuals involved, including notice and transition?',
     ],
+    caution:
+      'Hiring to deprive a competitor of talent can raise anti-poaching and competition-law concerns, and no-poach agreements are unlawful in many jurisdictions. Treat people as people, not as pieces to deny an opponent.',
     attribution: ATTR,
   },
 

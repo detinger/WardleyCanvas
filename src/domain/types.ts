@@ -133,6 +133,13 @@ export interface GameplayHypothesis extends PatternAssessment {
   leadingSignals: string[];
   risks: string[];
   ethicalNotes?: string;
+  // Section 7.3 — optional so earlier maps stay valid
+  assumptions?: string;
+  stopConditions?: string[];
+  /** Climate/doctrine assessments that support this hypothesis */
+  supportingIds?: Id[];
+  /** A person has deliberately reviewed risks, harms and legal/ethical notes */
+  humanReviewed?: boolean;
 }
 
 export interface DecisionRecord {

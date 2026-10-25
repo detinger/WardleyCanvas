@@ -102,6 +102,84 @@ function runValidator(v: ChallengeValidator, map: WardleyMap): ValidatorResult {
       break;
     }
 
+    case 'has-evolution-movement': {
+      const count = map.evolutions.length;
+      const min = v.minCount ?? 1;
+      passed = count >= min;
+      message = passed
+        ? `Has ${count} evolve arrow${count !== 1 ? 's' : ''}`
+        : `Needs at least ${min} evolve arrow${min !== 1 ? 's' : ''} — found ${count}`;
+      break;
+    }
+
+    case 'evolution-has-rationale': {
+      passed = map.evolutions.some((ev) => (ev.rationale ?? '').trim().length > 0);
+      message = passed
+        ? 'An evolve arrow explains why the component will move'
+        : 'No evolve arrow has a rationale yet';
+      break;
+    }
+
+    case 'has-inertia': {
+      const count = map.elements.filter((e) => e.inertia).length;
+      passed = count >= (v.minCount ?? 1);
+      message = passed
+        ? `${count} component${count !== 1 ? 's are' : ' is'} marked with inertia`
+        : 'No component is marked with inertia';
+      break;
+    }
+
+    case 'has-annotation': {
+      const count = map.annotations.length;
+      const min = v.minCount ?? 1;
+      passed = count >= min;
+      message = passed
+        ? `Has ${count} note${count !== 1 ? 's' : ''}`
+        : `Needs at least ${min} note${min !== 1 ? 's' : ''} — found ${count}`;
+      break;
+    }
+
+    case 'has-climate-assessment': {
+      const decided = map.analysis.climate.filter(
+        (a) => a.state !== 'considering' && a.rationale.trim().length > 0
+      );
+      passed = decided.length >= (v.minCount ?? 1);
+      message = passed
+        ? `${decided.length} climatic pattern${decided.length !== 1 ? 's' : ''} assessed with a rationale`
+        : 'No climatic pattern has been assessed with a rationale yet';
+      break;
+    }
+
+    case 'has-doctrine-assessment': {
+      const assessed = map.analysis.doctrine.filter((a) => a.rationale.trim().length > 0);
+      passed = assessed.length >= (v.minCount ?? 1);
+      message = passed
+        ? `${assessed.length} doctrine principle${assessed.length !== 1 ? 's' : ''} assessed with a rationale`
+        : 'No doctrine principle has been assessed with a rationale yet';
+      break;
+    }
+
+    case 'has-gameplay-hypothesis': {
+      const complete = map.analysis.gameplay.filter(
+        (g) => g.rationale.trim().length > 0 && g.leadingSignals.some((s) => s.trim()) && g.risks.some((r) => r.trim())
+      );
+      passed = complete.length >= (v.minCount ?? 1);
+      message = passed
+        ? `${complete.length} gameplay hypothes${complete.length !== 1 ? 'es have' : 'is has'} a rationale, signal and risk`
+        : 'No gameplay hypothesis has a rationale, a leading signal and a risk yet';
+      break;
+    }
+
+    case 'assessment-has-evidence': {
+      const evidenceIds = new Set(map.analysis.evidence.map((e) => e.id));
+      const all = [...map.analysis.climate, ...map.analysis.doctrine, ...map.analysis.gameplay];
+      passed = all.some((a) => a.evidenceIds.some((id) => evidenceIds.has(id)));
+      message = passed
+        ? 'An assessment is backed by evidence'
+        : 'No assessment is linked to an evidence record yet';
+      break;
+    }
+
     case 'custom': {
       if (!v.predicate) { passed = false; message = 'Custom validator has no predicate'; break; }
       try {
@@ -127,4 +205,26 @@ export function runChallenge(challenge: ChallengeDefinition, map: WardleyMap): C
     passCount,
     totalCount: results.length,
   };
+}
+
+/** Fallback "one possible next move" when a validator has no authored nextStep. */
+export function defaultNextStep(kind: ChallengeValidator['kind']): string {
+  switch (kind) {
+    case 'has-anchor': return 'Add an anchor from the toolbar (A) and name it after a real person or role.';
+    case 'has-component': return 'Add a component from the toolbar (C) and connect it to the value chain.';
+    case 'has-dependency': return 'Select an element, open the Connections tab and choose what it depends on.';
+    case 'is-connected': return 'Connect each loose component to something above it, or remove it.';
+    case 'multi-stage': return 'Move a component left or right, or set its Evolution value in the inspector.';
+    case 'anchor-has-description': return 'Select the anchor and describe the need in its Description.';
+    case 'component-has-description': return 'Select a component and explain your reasoning in its Description.';
+    case 'has-evolution-movement': return 'Select a component, open the Evolution tab and choose Add evolve arrow.';
+    case 'evolution-has-rationale': return 'In the Evolution tab, fill in “Rationale — why will it move?”.';
+    case 'has-inertia': return 'Select a component and tick Inertia in the Details tab.';
+    case 'has-annotation': return 'With nothing selected, open Details → Notes and choose Add note.';
+    case 'has-climate-assessment': return 'Open Analysis → Climate, choose a state for a pattern and write a rationale.';
+    case 'has-doctrine-assessment': return 'Open Analysis → Doctrine, choose a state for a principle and write a rationale.';
+    case 'has-gameplay-hypothesis': return 'Open Analysis → Gameplay, add a hypothesis and fill in rationale, signals and risks.';
+    case 'assessment-has-evidence': return 'In an assessment, choose New evidence and record what you observed.';
+    default: return 'Review the instructions above and adjust your map.';
+  }
 }
