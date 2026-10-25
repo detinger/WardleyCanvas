@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretest:e2e": "NEXT_DIST_DIR=.next-e2e next build",
     "test:e2e": "playwright test"
   },
   "dependencies": {

@@ -37,6 +37,10 @@ test('a new learner completes the first-map challenge by keyboard', async ({ pag
   await expect(results).toContainText('Why it matters:');
   await expect(results).toContainText('Try:');
   await expect(page.getByRole('status').first()).toHaveText(/checks passed/);
+  // The check intentionally moves focus after announcing its results. Wait for
+  // that hand-off before selecting a canvas node so the delayed focus cannot
+  // race the next keyboard action under a heavily parallel browser run.
+  await expect(page.locator(':focus')).toContainText(/checks passed/);
   // The example answer is not revealed after a failed attempt
   await expect(page.getByText('Compare with one possible answer')).toHaveCount(0);
 
@@ -97,7 +101,12 @@ test('progress can be exported and reset without touching maps', async ({ page }
   await page.goto('/maps/new');
   await page.waitForURL(/\/maps\/map_/);
   const mapsBefore = await page.evaluate(() => localStorage.getItem('wardleyStudio.maps'));
+  // These direct navigations deliberately replace the document. Let Next's
+  // visible-sidebar route prefetches finish first; WebKit otherwise reports
+  // their expected cancellation as Fetch/CORS console errors.
+  await page.waitForLoadState('networkidle');
   await page.goto('/learn/purpose-users-needs');
+  await page.waitForLoadState('networkidle');
   await page.goto('/learn');
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export progress' }).click()]);

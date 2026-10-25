@@ -7,6 +7,9 @@ import { mapWith, node } from './helpers';
 
 test('every navigation link resolves to a working page', async ({ page }) => {
   await page.goto('/');
+  // Let route prefetches settle before replacing the document. WebKit reports
+  // deliberately aborted RSC prefetches as console errors on rapid page.goto.
+  await page.waitForLoadState('networkidle');
   const nav = page.getByRole('complementary', { name: 'Main navigation' });
   const hrefs = await nav.getByRole('link').evaluateAll((links) => links.map((l) => (l as HTMLAnchorElement).getAttribute('href')!));
   expect(hrefs).toEqual(expect.arrayContaining(['/learn', '/learn/challenges', '/reference', '/scenarios', '/settings', '/help']));
@@ -14,6 +17,7 @@ test('every navigation link resolves to a working page', async ({ page }) => {
     const res = await page.goto(href);
     expect(res?.status(), href).toBeLessThan(400);
     await expect(page.locator('main h1').first()).toBeVisible();
+    await page.waitForLoadState('networkidle');
   }
 });
 

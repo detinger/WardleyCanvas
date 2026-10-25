@@ -5,19 +5,22 @@
 
 ## Current tested support
 
-The automated release matrix supports current Chromium desktop behavior. Playwright runs the complete suite using its bundled Chromium at 1440 × 900, with explicit responsive checks at 1100, 820, 600, and 375 px.
+The automated release matrix supports Chromium and WebKit engine behavior. Playwright runs the complete suite against an isolated production build at 1440 × 900, with explicit responsive checks at 1100, 820, 600, and 375 px. Linux CI is configured to add Firefox to the same matrix.
 
 The application requires JavaScript, SVG, `localStorage`, `structuredClone`, `ResizeObserver`, and modern download APIs. Private-browsing or storage policies that disable `localStorage` prevent durable map storage; users should export a backup before clearing browser data.
 
 | Environment | Evidence | Release status |
 | --- | --- | --- |
 | Chromium desktop | Full Playwright suite; axe in both themes | Supported |
-| Chromium responsive layouts | Automated at 1440/1100/820/600/375 px | Supported |
+| WebKit desktop engine | Full Playwright suite; axe in both themes | Supported engine |
+| Chromium/WebKit responsive layouts | Automated at 1440/1100/820/600/375 px | Supported |
 | Chrome/Edge stable | Same engine; vendor smoke run still recommended | Provisional |
-| Safari stable on macOS/iOS | Manual functional and VoiceOver run required | Not yet release-qualified |
-| Firefox stable | Manual functional and NVDA/keyboard run required | Not yet release-qualified |
+| Safari stable on macOS/iOS | WebKit suite is green; native Safari + VoiceOver run still required | Provisional |
+| Firefox stable | Project and Linux CI gate configured; manual NVDA/keyboard run required | Pending CI/manual qualification |
 
-“Provisional” is deliberately not presented as tested support. A release that promises Safari or Firefox must attach its browser/OS version and the result of the core-flow matrix below.
+“Provisional” is deliberately not presented as tested browser support. A release that promises Safari or Firefox must attach its browser/OS version and the result of the core-flow matrix below.
+
+Playwright Firefox cannot start on this macOS 27 workstation because the OS protects Firefox’s shared app-data directory. The project therefore runs Firefox on non-macOS CI and allows an explicit `PLAYWRIGHT_FIREFOX=1` override on macOS versions where launch is available. This is tracked upstream in [microsoft/playwright#42768](https://github.com/microsoft/playwright/issues/42768).
 
 ## Core-flow matrix
 
@@ -34,4 +37,3 @@ Each supported browser must pass:
 9. finish with no console error or unhandled rejection.
 
 The smallest layout under automated test is 375 CSS px. No claim is made below that width.
-

@@ -183,7 +183,7 @@ _Update 2026-10-25 (AUD-02 complete):_
 | Vitest | `npm test` | domain commands/editing/migration/validation, editor reducer, OWM parser + round trip, import preview/commit, SVG export, viewport geometry, persistence, scenarios |
 | Playwright | `npm run test:e2e` | Phase 1 slice (create, connect, autosave, save/reopen, draft recovery, keyboard), drag/nudge/duplicate, keyboard dependencies, responsive 1440/1100/820/600/375, themes, import preview/cancel, hostile input, deterministic SVG/JSON/PNG export |
 
-The E2E suite starts its own dev server on port 9003 with `NEXT_DIST_DIR=.next-e2e`, so it can run beside `npm run dev`.
+The E2E npm lifecycle builds and starts its own production server on port 9003 with `NEXT_DIST_DIR=.next-e2e`, so it can run beside `npm run dev`.
 Fixtures live in `tests/fixtures/` (`legacy-ecommerce.json`, `tea-shop.owm`).
 
 ---

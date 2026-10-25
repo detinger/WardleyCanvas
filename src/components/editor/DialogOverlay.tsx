@@ -49,10 +49,30 @@ export default function DialogOverlay({
         firstItem.focus();
       }
     }
+
+    // WebKit can move focus past the document when native form controls are
+    // skipped by the platform's keyboard-navigation preference. Recapture any
+    // focus that escapes instead of relying only on first/last Tab detection.
+    function onFocusIn(e: FocusEvent) {
+      if (!panel || panel.contains(e.target as Node)) return;
+      const firstItem = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
+        (el) => el.offsetParent !== null
+      );
+      (firstItem ?? panel).focus();
+    }
+
     document.addEventListener('keydown', onKey, true);
+    document.addEventListener('focusin', onFocusIn, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
-      opener?.focus?.();
+      document.removeEventListener('focusin', onFocusIn, true);
+      // WebKit needs the modal subtree to finish unmounting before focus can
+      // return to the opener. Do not steal focus if another modal replaced it.
+      requestAnimationFrame(() => {
+        if (opener?.isConnected && !document.querySelector('[role="dialog"][aria-modal="true"]')) {
+          opener.focus();
+        }
+      });
     };
   }, []);
 

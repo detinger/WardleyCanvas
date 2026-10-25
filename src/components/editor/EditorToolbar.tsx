@@ -282,6 +282,12 @@ export default function EditorToolbar({
       {/* Primary action */}
       <button
         onClick={onSaveVersion}
+        onMouseDown={(e) => {
+          // Safari does not focus buttons on click by default. Capture the
+          // opener explicitly so modal focus can be restored on close.
+          e.preventDefault();
+          e.currentTarget.focus({ preventScroll: true });
+        }}
         style={{
           height: 34,
           padding: '0 12px',
@@ -337,6 +343,10 @@ function ToolbarButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.currentTarget.focus({ preventScroll: true });
+      }}
       style={{
         width: 34,
         height: 34,

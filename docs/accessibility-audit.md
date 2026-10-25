@@ -15,12 +15,12 @@ This result is a release gate, not a claim of full WCAG conformance. The assisti
 Command:
 
 ```sh
-npx playwright test e2e/accessibility.spec.ts
+npm run test:e2e -- e2e/accessibility.spec.ts
 ```
 
-Result on 2026-10-25: **6 passed** in Chromium.
+Result on 2026-10-25: **15 passed, 1 engine-specific skip** across Chromium and WebKit. The forced-colors emulation gate runs in Chromium; reduced-motion and axe checks run in both engines.
 
-The axe scan uses the WCAG 2.0/2.1 A and AA rule sets and fails on serious or critical findings. It covers these states in both themes:
+The axe scan uses the WCAG 2.0/2.1 A and AA rule sets and fails on serious or critical findings. It covers these states in both themes and both tested engines:
 
 - overview, maps collection, editor, and editor analysis;
 - learning path, lesson, and challenge runner;
@@ -34,6 +34,8 @@ The same suite verifies:
 - a deletion with dependants names the affected relationship and asks for confirmation;
 - the keyboard shortcut dialog opens with `?` and closes with Escape;
 - keyboard-focused SVG elements receive a visible outline.
+- reduced-motion mode collapses nonessential animation and transition durations;
+- Chromium forced-colors emulation retains a visible keyboard focus outline.
 
 Related end-to-end coverage verifies keyboard-only first-map completion, keyboard dependency creation, focus movement to challenge feedback, dialog focus trapping and restoration, narrow layouts at 820/600/375 px, and theme changes that preserve editor state.
 
@@ -47,7 +49,7 @@ Related end-to-end coverage verifies keyboard-only first-map completion, keyboar
 | Status changes | Polite editor live region and focused challenge results | Pass |
 | Dialogs | Labelled dialog, Escape close, focus trap, opener focus restoration | Pass |
 | Focus visibility | Global tokenized focus ring plus SVG and forced-colors fallbacks | Pass |
-| Motion | `prefers-reduced-motion` removes nonessential animation and smooth scrolling | Pass by stylesheet inspection |
+| Motion | `prefers-reduced-motion` removes nonessential animation and smooth scrolling | Pass in Chromium and WebKit automation |
 | Reflow | Inspector moves below the map at 820 px; collection and scenario layouts stack | Pass in automated layout checks |
 | Colour | Axe checks both themes; selection and scenario deltas also use text/icons | Pass for tested states |
 
@@ -56,9 +58,8 @@ Related end-to-end coverage verifies keyboard-only first-map completion, keyboar
 These checks cannot be represented faithfully by DOM automation and must be recorded before claiming broad assistive-technology support:
 
 1. VoiceOver with the current Safari release on macOS: create, connect, inspect, save, recover, and export a map.
-2. NVDA with the current Firefox or Chrome release on Windows: repeat the same core flow.
+2. NVDA with the current Firefox or Chrome release on Windows: repeat the same core flow. Firefox automation is configured for Linux CI; macOS 27 currently blocks Playwright Firefox profile startup.
 3. Browser zoom at 200% with keyboard-only operation and no loss of content.
 4. Windows forced-colors mode and a physical touch-target review at the smallest supported device.
 
 Any critical or serious issue found in those sessions blocks release. Moderate and minor findings require a tracked owner and target release.
-

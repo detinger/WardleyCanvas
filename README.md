@@ -54,7 +54,7 @@ npm run build
 npm run test:e2e
 ```
 
-The Playwright suite starts an isolated development server on port 9003 and uses `.next-e2e`, so it can run alongside `npm run dev`.
+The Playwright npm lifecycle builds and starts an isolated production server on port 9003 using `.next-e2e`, so it can run alongside `npm run dev`.
 
 ## Architecture
 
@@ -62,7 +62,7 @@ The Playwright suite starts an isolated development server on port 9003 and uses
 - SVG renderer with independent domain geometry and deterministic export
 - Pure domain commands, validation, parsers, scenario rules, and analysis summaries
 - Browser-local persistence with sequential legacy migration and recoverable backups
-- Vitest for domain/integration tests and Playwright + axe-core for end-to-end/accessibility gates
+- Vitest for domain/integration tests and a Chromium/WebKit/Firefox Playwright + axe-core release matrix
 
 The implementation contract is [PLAN.md](PLAN.md). Release evidence and decisions live in `docs/`, including the [accessibility audit](docs/accessibility-audit.md), [browser support statement](docs/browser-support.md), [content/licence review](docs/content-license-review.md), [collaboration ADR](docs/adr/0001-collaboration-readiness.md), and [telemetry ADR](docs/adr/0002-privacy-safe-telemetry.md).
 
