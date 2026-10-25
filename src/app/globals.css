@@ -617,9 +617,13 @@ next-dev-indicator {
   }
 }
 
-/* Dark mode nav label contrast — set on the span directly so Linux WebKit inherits correctly */
+/* Dark mode nav contrast — set on spans directly; active item uses transparent bg
+   so axe computes against --bg-elevated (10:1+) instead of --primary-soft (~5:1) */
 [data-theme="dark"] .nav-sidebar .nav-label {
   color: var(--text-muted) !important;
+}
+[data-theme="dark"] .nav-sidebar a[aria-current="page"] {
+  background: transparent !important;
 }
 [data-theme="dark"] .nav-sidebar a[aria-current="page"] .nav-label {
   color: var(--primary-strong) !important;
