@@ -343,27 +343,25 @@ function WardleyMark() {
     <svg
       width="28"
       height="28"
-      viewBox="0 0 28 28"
+      viewBox="0 0 32 32"
       fill="none"
       aria-hidden="true"
       style={{ flexShrink: 0 }}
     >
-      {/* Four-stage horizontal field */}
-      <rect x="2" y="24" width="24" height="1" fill="var(--text-subtle)" />
-      {/* Descending value-chain line */}
-      <polyline
-        points="4,6 10,11 17,16 24,20"
-        stroke="var(--primary)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      {/* Component dots */}
-      <circle cx="4" cy="6" r="2.5" fill="var(--primary)" />
-      <circle cx="10" cy="11" r="2" fill="var(--primary)" opacity="0.75" />
-      <circle cx="17" cy="16" r="2" fill="var(--primary)" opacity="0.55" />
-      <circle cx="24" cy="20" r="2" fill="var(--primary)" opacity="0.35" />
+      {/* Dependency lines */}
+      <line x1="5" y1="4" x2="12" y2="10" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="4" x2="20" y2="9" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12" y1="10" x2="10" y2="18" stroke="var(--primary)" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+      <line x1="12" y1="10" x2="19" y2="17" stroke="var(--primary)" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+      <line x1="20" y1="9" x2="19" y2="17" stroke="var(--primary)" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
+      <line x1="19" y1="17" x2="26" y2="24" stroke="var(--primary)" strokeWidth="1" strokeLinecap="round" opacity="0.55" />
+      {/* Component nodes */}
+      <circle cx="5" cy="4" r="2.5" fill="var(--primary)" />
+      <circle cx="12" cy="10" r="2" fill="var(--primary)" opacity="0.85" />
+      <circle cx="20" cy="9" r="2" fill="var(--primary)" opacity="0.75" />
+      <circle cx="10" cy="18" r="1.8" fill="var(--primary)" opacity="0.6" />
+      <circle cx="19" cy="17" r="2" fill="var(--primary)" opacity="0.65" />
+      <circle cx="26" cy="24" r="1.8" fill="var(--primary)" opacity="0.45" />
     </svg>
   );
 }
