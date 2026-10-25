@@ -622,16 +622,18 @@ next-dev-indicator {
   background: var(--bg-elevated);
 }
 
-/* Dark mode nav contrast — set on spans directly; active item uses transparent bg
-   so axe computes against --bg-elevated (10:1+) instead of --primary-soft (~5:1) */
+/* Dark mode nav contrast — axe-core reads -webkit-text-fill-color before color;
+   Linux WebKit sets it automatically in dark mode, so we pin it explicitly */
 [data-theme="dark"] .nav-sidebar .nav-label {
   color: var(--text-muted) !important;
+  -webkit-text-fill-color: var(--text-muted) !important;
 }
 [data-theme="dark"] .nav-sidebar a[aria-current="page"] {
   background-color: transparent !important;
 }
 [data-theme="dark"] .nav-sidebar a[aria-current="page"] .nav-label {
   color: var(--primary-strong) !important;
+  -webkit-text-fill-color: var(--primary-strong) !important;
 }
 
 /* Learning challenge: the editor needs a bounded box to lay out canvas + inspector */
