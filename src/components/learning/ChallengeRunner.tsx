@@ -382,6 +382,8 @@ function ReflectionSection({
 function CompletionBanner({ module: mod, onReset }: { module: LearningModule; onReset: () => void }) {
   const sample = mod.challenge.sampleSolution;
   const sampleOwm = React.useMemo(() => (sample ? serializeOWM(sample.build()) : ''), [sample]);
+  const completionLabel = mod.caseStudy ? 'Case study complete' : 'Module complete';
+  const completionSubject = mod.caseStudy ? 'case study' : 'module';
   return (
     <div>
       <div
@@ -389,9 +391,9 @@ function CompletionBanner({ module: mod, onReset }: { module: LearningModule; on
         style={{ textAlign: 'center', padding: '32px 24px', border: '1px solid var(--success)', borderRadius: 12, background: 'var(--success-soft)', marginBottom: 16 }}
       >
         <Trophy size={32} color="var(--success)" style={{ marginBottom: 12 }} aria-hidden="true" />
-        <h2 style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>Module complete</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 8px' }}>{completionLabel}</h2>
         <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
-          You completed “{mod.title}”. Your objective checks and your reflection are recorded separately.
+          You completed the {completionSubject} “{mod.title}”. Your objective checks and your reflection are recorded separately.
         </p>
         <button onClick={onReset} style={{ ...secondaryButton, display: 'inline-flex' }}>
           <RotateCcw size={13} /> Reset and try again

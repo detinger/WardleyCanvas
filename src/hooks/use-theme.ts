@@ -6,7 +6,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
-export const THEME_KEY = 'wardleyStudio.theme';
+const THEME_KEY = 'wardleyStudio.theme';
 export const NEXT_PREFERENCE: Record<ThemePreference, ThemePreference> = { light: 'dark', dark: 'system', system: 'light' };
 
 type Snapshot = { preference: ThemePreference; theme: 'light' | 'dark' };
@@ -22,7 +22,6 @@ function systemTheme(): 'light' | 'dark' {
 function apply(preference: ThemePreference) {
   const theme = preference === 'system' ? systemTheme() : preference;
   document.documentElement.setAttribute('data-theme', theme);
-  // Also set class for ShadCN compatibility
   document.documentElement.classList.toggle('dark', theme === 'dark');
   snapshot = { preference, theme };
   listeners.forEach((l) => l());
@@ -42,7 +41,7 @@ function load() {
   });
 }
 
-export function setThemePreference(preference: ThemePreference) {
+function setThemePreference(preference: ThemePreference) {
   try { localStorage.setItem(THEME_KEY, preference); } catch { /* ignore */ }
   apply(preference);
 }

@@ -1,69 +1,91 @@
-# Wardley Canvas
+# Wardley Maps Studio
 
-Wardley Canvas is an interactive web application designed for creating, visualizing, and analyzing Wardley Maps. This tool provides an intuitive drag-and-drop interface to help you map out your value chains, understand your strategic landscape, and make better decisions.
+Wardley Maps Studio is a local-first workspace for learning, editing, analyzing, and comparing Wardley Maps. It keeps the map as the primary artifact while making assumptions, evidence, uncertainty, scenarios, and decisions explicit.
 
-Built with Next.js, React, TypeScript, and ShadCN UI, this application is a modern, performant, and extendable platform for strategic mapping.
+## What it includes
 
-## Features
+- SVG visual editor with normalized coordinates, pan/zoom/fit, multi-select, keyboard editing, undo/redo, and an accessible map outline.
+- Synchronized visual, source, and split editing for the supported OnlineWardleyMaps syntax.
+- Draft recovery, immutable committed versions, migration of legacy browser data, and full local-data backup/deletion controls.
+- Native JSON and OWM import/export, plus SVG, PNG, and printable PDF export with diagnostics and loss reporting.
+- Structural validation and non-blocking modeling guidance.
+- Eight foundation modules plus six progressive IT case studies, with guided challenges, an independent capstone, hints, rubrics, and durable progress.
+- Evidence-backed climate, doctrine, and gameplay assessments without composite strategy scores.
+- Immutable scenario baselines, delta comparison, inspectable findings, decision records, and decision-packet export.
+- Light, dark, and system themes with responsive layouts down to 375 CSS px in the automated matrix.
 
-- **Interactive Canvas**: Easily drag components onto the map to build your value chain.
-- **Visual Editor**: Position components along the evolution axis (Genesis, Custom-built, Product, Commodity) and the value chain axis (Visible to Invisible).
-- **Dependency Linking**: Create links between components to visualize dependencies.
-- **Node Management**: Double-click to rename components on the fly.
-- **Local Persistence**: Save your maps to your browser's local storage and load them later.
-- **Pre-built Templates**: Get started quickly with a gallery of common Wardley Map templates.
-- **In-App Guide**: Learn the core concepts of Wardley Mapping without leaving the app.
+All user maps and learning progress stay in the current browser’s `localStorage`. There is no account, server sync, collaboration, or product telemetry in version 1. Export a backup before clearing browser data.
 
-## Tech Stack
+## Routes
 
-- **Framework**: [Next.js](https://nextjs.org/) (with App Router)
-- **UI Library**: [React](https://react.dev/)
-- **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Drag and Drop**: [Dnd-kit](https://dndkit.com/)
-- **AI Integration**: [Genkit](https://firebase.google.com/docs/genkit)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
+| Route | Purpose |
+| --- | --- |
+| `/` | Overview, recent maps, and learning progress |
+| `/maps` | Map collection, templates, create, and import |
+| `/maps/:mapId` | Primary editor and analysis inspector |
+| `/maps/:mapId/history` | Immutable version history and restore-as-new-version |
+| `/maps/:mapId/scenarios` | Scenario collection for a map |
+| `/maps/:mapId/scenarios/:scenarioId` | Scenario editing, comparison, consequences, and decisions |
+| `/learn` | Learning path |
+| `/learn/:moduleId` | Lesson and challenge workspace |
+| `/learn/challenges` | Challenge index |
+| `/reference` | Notation, climate, doctrine, gameplay, sources, and licence |
+| `/scenarios` | Scenario index |
+| `/settings` | Theme, accessibility notes, and local-data controls |
+| `/help` | Editor and keyboard help |
 
-## Getting Started
+## Development
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
+Requirements: Node.js 20.9 or newer and npm.
 
-### Prerequisites
+```sh
+npm ci
+npm run dev
+```
 
-- [Node.js](https://nodejs.org/) (v20 or later recommended)
-- [npm](https://www.npmjs.com/) (usually comes with Node.js)
+The development server listens on <http://localhost:9002>.
+If that port is already occupied, stop the existing process or run `npm run dev -- -p 9004`.
 
-### Installation
+Useful checks:
 
-1.  **Clone the repository:**
-    If you don't have the project files, first clone the repository to your local machine.
-    ```bash
-    # Replace with your repository's URL
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+```sh
+npm audit --audit-level=moderate
+npm run check
+npm test
+npm run typecheck
+npm run build
+npm run test:e2e
+npm run test:performance
+npm run test:visual
+```
 
-2.  **Install dependencies:**
-    Use `npm` to install the required packages from `package.json`.
-    ```bash
-    npm install
-    ```
+The Playwright npm lifecycle builds and starts an isolated production server on port 9003 using `.next-e2e`, so it can run alongside `npm run dev`.
 
-### Running the Application
+## Deployment
 
-**Start the development server:**
-    This command starts the Next.js development server.
-    ```bash
-    npm run dev
-    ```
-    The application will typically be available at `http://localhost:9002`.
+No environment variables, database, Firebase SDK, or external API are required. Build and start a production instance with:
 
+```sh
+npm ci
+npm run check
+npm start
+```
 
-## How to Use
+Run `npm run test:e2e` for the complete Chromium, Firefox, WebKit, accessibility, performance, and visual release gate. The repository includes `apphosting.yaml` for Firebase App Hosting, while any platform that supports a standard Next.js 16 application and Node.js 20.9+ can host it.
 
-- **Add a component**: Drag the "New Component" block from the right-hand toolbox onto the canvas.
-- **Move a component**: Click and drag any component on the canvas. Its evolution stage will update automatically based on its position.
-- **Rename a component**: Double-click on a component's text label to edit its name.
-- **Create a link**: Click on one component to select it, then click on another to create a dependency link between them.
-- **Save/Load**: Use the header buttons to save your current map or load a previously saved one.
-- **Templates**: Explore the "Templates" dialog to start from a pre-configured map.
+The application is browser-local. Each browser profile keeps its own maps and learning progress in `localStorage`; deployments do not provide accounts, synchronization, or server-side persistence.
+
+## Architecture
+
+- Next.js App Router, React, and TypeScript
+- SVG renderer with independent domain geometry and deterministic export
+- Pure domain commands, validation, parsers, scenario rules, and analysis summaries
+- Browser-local persistence with sequential legacy migration and recoverable backups
+- Vitest for domain/integration tests and a Chromium/WebKit/Firefox Playwright + axe-core release matrix
+- GitHub Actions gates dependency security, type checking, unit tests, production build, accessibility, performance, and visual regression on every pull request and push to `main`
+
+The implementation contract is [PLAN.md](PLAN.md). Release evidence and decisions live in `docs/`, including the [accessibility audit](docs/accessibility-audit.md), [browser support statement](docs/browser-support.md), [performance report](docs/performance-report.md), [visual-regression matrix](docs/visual-regression.md), [content/licence review](docs/content-license-review.md), [collaboration ADR](docs/adr/0001-collaboration-readiness.md), and [telemetry ADR](docs/adr/0002-privacy-safe-telemetry.md).
+
+## Attribution and licences
+
+Wardley reference and learning content is adapted and rewritten from Wardley Maps by Simon Wardley under CC BY-SA 4.0. The application is not affiliated with or endorsed by Simon Wardley. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for content attribution and direct dependency licences.

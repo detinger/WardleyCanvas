@@ -14,10 +14,10 @@ export const DATA_KEYS = {
 } as const;
 
 /** Preferences that are not user content; kept unless explicitly included. */
-export const PREFERENCE_KEYS = ['wardleyStudio.theme', 'wardleyStudio.sidebarExpanded'] as const;
+const PREFERENCE_KEYS = ['wardleyStudio.theme', 'wardleyStudio.sidebarExpanded'] as const;
 
-export const EXPORT_FORMAT = 'wardley-studio-backup';
-export const EXPORT_VERSION = 1;
+const EXPORT_FORMAT = 'wardley-studio-backup';
+const EXPORT_VERSION = 1;
 
 function storage(): Storage | null {
   try {

@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const module03: LearningModule = {
   id: 'visibility-evolution',
@@ -8,7 +8,7 @@ const module03: LearningModule = {
   tagline: 'Position tells you where a component is now — not where it should be.',
   conceptIds: ['visibility', 'evolution', 'genesis', 'commodity', 'stage'],
   published: true,
-  meta: { ...DRAFT_META, version: 2 },
+  meta: { ...REVIEWED_META, version: 2 },
 
   explanation: `
 ## The two axes

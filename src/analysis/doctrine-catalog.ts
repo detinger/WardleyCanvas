@@ -2,9 +2,11 @@
 // Organized by phase. Stable IDs — do not change once published.
 // Source: Wardley Maps (Simon Wardley, CC BY-SA 4.0).
 
+import { CatalogProvenance, WARDLEY_CATALOG_PROVENANCE } from './catalog-meta';
+
 export type DoctrinePhase = 'I' | 'II' | 'III' | 'IV';
 
-export interface DoctrineCatalogEntry {
+export interface DoctrineCatalogEntry extends CatalogProvenance {
   id: string;
   version: number;
   phase: DoctrinePhase;
@@ -23,7 +25,7 @@ export interface DoctrineCatalogEntry {
 
 const ATTR = 'Wardley Maps — Simon Wardley (CC BY-SA 4.0)';
 
-export const DOCTRINE_CATALOG: DoctrineCatalogEntry[] = [
+const DOCTRINE_CATALOG_BASE: Omit<DoctrineCatalogEntry, keyof CatalogProvenance>[] = [
   // ---------------------------------------------------------------------------
   // Phase I: Stop self-harm
   // ---------------------------------------------------------------------------
@@ -473,9 +475,10 @@ export const DOCTRINE_CATALOG: DoctrineCatalogEntry[] = [
   },
 ];
 
-export function getDoctrineCatalog(): DoctrineCatalogEntry[] {
-  return DOCTRINE_CATALOG;
-}
+export const DOCTRINE_CATALOG: DoctrineCatalogEntry[] = DOCTRINE_CATALOG_BASE.map((entry) => ({
+  ...entry,
+  ...WARDLEY_CATALOG_PROVENANCE,
+}));
 
 export function getDoctrineEntry(id: string): DoctrineCatalogEntry | undefined {
   return DOCTRINE_CATALOG.find((e) => e.id === id);

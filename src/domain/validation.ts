@@ -359,36 +359,6 @@ function checkModelingGuidance(map: WardleyMap): ValidationFinding[] {
 }
 
 // ---------------------------------------------------------------------------
-// Suppression support
-// ---------------------------------------------------------------------------
-
-const SUPPRESSION_KEY = 'wardleyStudio.suppressedRules';
-
-export function getSuppressedRules(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const raw = localStorage.getItem(SUPPRESSION_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-export function suppressRule(ruleId: string): void {
-  if (typeof window === 'undefined') return;
-  const set = getSuppressedRules();
-  set.add(ruleId);
-  localStorage.setItem(SUPPRESSION_KEY, JSON.stringify([...set]));
-}
-
-export function unsuppressRule(ruleId: string): void {
-  if (typeof window === 'undefined') return;
-  const set = getSuppressedRules();
-  set.delete(ruleId);
-  localStorage.setItem(SUPPRESSION_KEY, JSON.stringify([...set]));
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 

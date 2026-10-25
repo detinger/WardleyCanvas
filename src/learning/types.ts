@@ -8,14 +8,14 @@ import { WardleyMap } from '@/domain/types';
 // Content atoms
 // ---------------------------------------------------------------------------
 
-export interface ConceptLink {
+interface ConceptLink {
   id: string;
   label: string;
   url?: string;         // external reference (sanitized at render time)
   moduleId?: string;    // internal cross-reference
 }
 
-export interface AnnotatedExample {
+interface AnnotatedExample {
   id: string;
   title: string;
   description: string;
@@ -61,20 +61,20 @@ export interface ChallengeValidator {
   predicate?: (map: WardleyMap) => boolean;
 }
 
-export interface ChallengeHint {
+interface ChallengeHint {
   /** Progressive: show in order, one at a time */
   level: 1 | 2 | 3 | 4;
   text: string;
 }
 
-export interface RubricCriterion {
+interface RubricCriterion {
   id: string;
   description: string;
   /** Subjective — not auto-checked; presented for reflection only */
   reflectionOnly: boolean;
 }
 
-export interface ChallengeStep {
+interface ChallengeStep {
   id: string;
   instruction: string;
 }
@@ -105,7 +105,7 @@ export interface ChallengeDefinition {
 // Content governance (Section 9.4)
 // ---------------------------------------------------------------------------
 
-export interface ContentSource {
+interface ContentSource {
   label: string;
   url?: string;
 }
@@ -114,7 +114,7 @@ export interface ContentMeta {
   /** Bump when the meaning of the content changes (not for typo fixes) */
   version: number;
   author: string;
-  /** Empty until a subject-matter reviewer signs off */
+  /** Human reviewer attribution; required when reviewStatus is reviewed. */
   reviewer?: string;
   reviewStatus: 'draft' | 'reviewed';
   /** ISO date (YYYY-MM-DD) of the last review or authoring pass */
@@ -127,7 +127,14 @@ export interface ContentMeta {
 // Lesson / module
 // ---------------------------------------------------------------------------
 
-export type ModuleStatus = 'locked' | 'available' | 'in-progress' | 'complete';
+interface CaseStudyMeta {
+  /** Display order within the case-study track (1-indexed). */
+  number: number;
+  /** Scaffolding deliberately decreases as learners progress. */
+  guidance: 'Guided' | 'Supported' | 'Independent';
+  estimatedMinutes: number;
+  industry: 'IT';
+}
 
 export interface LearningModule {
   /** Stable ID — survives copy edits and renames */
@@ -143,6 +150,8 @@ export interface LearningModule {
   challenge: ChallengeDefinition;
   reflectionPrompts: string[];
   conceptLinks: ConceptLink[];
+  /** Present when this module belongs to the applied case-study track. */
+  caseStudy?: CaseStudyMeta;
   /** If true, module is ready; false = coming-soon stub */
   published: boolean;
   meta: ContentMeta;

@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const STARTER = `title Regional hospital records
 
@@ -22,7 +22,7 @@ const module08: LearningModule = {
   tagline: 'Compare futures, record the decision, and track what you expected.',
   conceptIds: ['scenario', 'decision', 'comparison'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## From one map to several futures

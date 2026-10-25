@@ -2,6 +2,8 @@
 // Each entry has a stable ID. Do not change IDs once published.
 // Source: Wardley Maps (Simon Wardley, CC BY-SA 4.0).
 
+import { CatalogProvenance, WARDLEY_CATALOG_PROVENANCE } from './catalog-meta';
+
 export type ClimateCategory =
   | 'competitors'
   | 'components'
@@ -10,7 +12,7 @@ export type ClimateCategory =
   | 'prediction'
   | 'speed';
 
-export interface ClimateCatalogEntry {
+export interface ClimateCatalogEntry extends CatalogProvenance {
   id: string;
   version: number;
   category: ClimateCategory;
@@ -22,7 +24,7 @@ export interface ClimateCatalogEntry {
   attribution: string;
 }
 
-export const CLIMATE_CATALOG: ClimateCatalogEntry[] = [
+const CLIMATE_CATALOG_BASE: Omit<ClimateCatalogEntry, keyof CatalogProvenance>[] = [
   {
     id: 'cp-001',
     version: 1,
@@ -193,9 +195,10 @@ export const CLIMATE_CATALOG: ClimateCatalogEntry[] = [
   },
 ];
 
-export function getClimateCatalog(): ClimateCatalogEntry[] {
-  return CLIMATE_CATALOG;
-}
+export const CLIMATE_CATALOG: ClimateCatalogEntry[] = CLIMATE_CATALOG_BASE.map((entry) => ({
+  ...entry,
+  ...WARDLEY_CATALOG_PROVENANCE,
+}));
 
 export function getClimateEntry(id: string): ClimateCatalogEntry | undefined {
   return CLIMATE_CATALOG.find((e) => e.id === id);

@@ -7,9 +7,9 @@ import { getClimateEntry, CLIMATE_CATALOG } from './climate-catalog';
 import { getDoctrineEntry, DOCTRINE_CATALOG, DOCTRINE_PHASES } from './doctrine-catalog';
 import { getGameplayEntry, GAMEPLAY_CATALOG } from './gameplay-catalog';
 
-export type AssessmentKind = 'climate' | 'doctrine' | 'gameplay';
+type AssessmentKind = 'climate' | 'doctrine' | 'gameplay';
 
-export interface AssessmentRow {
+interface AssessmentRow {
   id: string;
   kind: AssessmentKind;
   catalogId: string;
@@ -139,11 +139,33 @@ export function analysisToCsv(summary: AnalysisSummary): string {
 /** Catalog provenance for exports that reproduce catalog text (CC BY-SA attribution). */
 export function catalogProvenance() {
   return {
-    climate: CLIMATE_CATALOG.map((e) => ({ id: e.id, version: e.version, title: e.shortTitle, attribution: e.attribution })),
-    doctrine: DOCTRINE_CATALOG.map((e) => ({ id: e.id, version: e.version, title: e.shortTitle, attribution: e.attribution })),
-    gameplay: GAMEPLAY_CATALOG.map((e) => ({ id: e.id, version: e.version, title: e.shortTitle, attribution: e.attribution })),
+    climate: CLIMATE_CATALOG.map(catalogEntryProvenance),
+    doctrine: DOCTRINE_CATALOG.map(catalogEntryProvenance),
+    gameplay: GAMEPLAY_CATALOG.map(catalogEntryProvenance),
     license:
       'Catalog definitions are adapted from Wardley Maps by Simon Wardley, licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). ' +
       'Adaptations are shared under the same licence. Assessments are map-specific observations by the map’s authors.',
+  };
+}
+
+function catalogEntryProvenance(e: {
+  id: string;
+  version: number;
+  shortTitle: string;
+  attribution: string;
+  license: string;
+  sourceUrl: string;
+  adaptationNotice: string;
+  lastReviewed: string;
+}) {
+  return {
+    id: e.id,
+    version: e.version,
+    title: e.shortTitle,
+    attribution: e.attribution,
+    license: e.license,
+    sourceUrl: e.sourceUrl,
+    adaptationNotice: e.adaptationNotice,
+    lastReviewed: e.lastReviewed,
   };
 }

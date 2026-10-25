@@ -16,15 +16,17 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
+      - name: Dependency audit
+        run: npm audit --audit-level=moderate
       - name: Type check
         run: npm run typecheck
       - name: Unit tests (includes learning-content schema validation)
         run: npm test
       - name: Build
         run: npm run build
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-      - name: End-to-end tests
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Cross-browser, performance, and visual release gates
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

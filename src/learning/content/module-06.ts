@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const STARTER = `title Council planning service
 
@@ -25,7 +25,7 @@ const module06: LearningModule = {
   tagline: 'Universal principles that reduce unforced error — regardless of position.',
   conceptIds: ['doctrine', 'principle', 'operating'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## Doctrine: what generally works

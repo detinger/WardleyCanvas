@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const STARTER = `title Newspaper publisher
 
@@ -26,7 +26,7 @@ const module05: LearningModule = {
   tagline: 'External forces shape the landscape — whether you act on them or not.',
   conceptIds: ['climate', 'inertia', 'pattern'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## Climate: the rules of the game

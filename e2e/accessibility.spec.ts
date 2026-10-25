@@ -98,3 +98,26 @@ test('focused canvas elements show a visible focus outline', async ({ page }) =>
   });
   expect(['solid', 'n/a']).toContain(outline);
 });
+
+test('reduced-motion preference removes nonessential transitions', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const durations = await page.getByRole('link', { name: 'Maps', exact: true }).evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { animation: style.animationDuration, transition: style.transitionDuration };
+  });
+  const seconds = (value: string) => value.endsWith('ms') ? Number.parseFloat(value) / 1000 : Number.parseFloat(value);
+  expect(seconds(durations.animation)).toBeLessThanOrEqual(0.00001);
+  expect(seconds(durations.transition)).toBeLessThanOrEqual(0.00001);
+});
+
+test('forced colors keeps keyboard focus visible', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'forced-colors emulation is a Chromium release gate');
+  await page.emulateMedia({ forcedColors: 'active' });
+  await mapWith(page);
+  await node(page, 'Kettle').focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  const outline = await page.evaluate(() => getComputedStyle(document.activeElement as Element).outlineStyle);
+  expect(outline).toBe('solid');
+});

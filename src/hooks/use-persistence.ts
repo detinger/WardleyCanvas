@@ -63,7 +63,7 @@ function writeDrafts(drafts: Record<Id, WardleyMap>): void {
 // ---------------------------------------------------------------------------
 
 /** Migrate legacy maps on first run, if any exist. */
-export function ensureMigrated(): void {
+function ensureMigrated(): void {
   runLegacyMigration();
 }
 

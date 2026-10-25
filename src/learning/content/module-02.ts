@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const module02: LearningModule = {
   id: 'components-value-chains',
@@ -8,7 +8,7 @@ const module02: LearningModule = {
   tagline: 'A value chain traces every dependency from user need to underlying capability.',
   conceptIds: ['component', 'value-chain', 'dependency', 'visibility'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## What is a component?

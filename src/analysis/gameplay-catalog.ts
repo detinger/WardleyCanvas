@@ -3,6 +3,8 @@
 // IMPORTANT: All gameplay entries MUST include risks and ethical review prompts.
 // These are strategic hypotheses — not instructions or guarantees.
 
+import { CatalogProvenance, WARDLEY_CATALOG_PROVENANCE } from './catalog-meta';
+
 export type GameplayCategory =
   | 'basic-operations'
   | 'user-perception'
@@ -15,7 +17,7 @@ export type GameplayCategory =
   | 'positional'
   | 'competitor';
 
-export interface GameplayCatalogEntry {
+export interface GameplayCatalogEntry extends CatalogProvenance {
   id: string;
   version: number;
   category: GameplayCategory;
@@ -34,7 +36,7 @@ export interface GameplayCatalogEntry {
 
 const ATTR = 'Wardley Maps — Simon Wardley (CC BY-SA 4.0)';
 
-export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = [
+const GAMEPLAY_CATALOG_BASE: Omit<GameplayCatalogEntry, keyof CatalogProvenance>[] = [
   // ---------------------------------------------------------------------------
   // Basic operations
   // ---------------------------------------------------------------------------
@@ -427,9 +429,10 @@ export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = [
   },
 ];
 
-export function getGameplayCatalog(): GameplayCatalogEntry[] {
-  return GAMEPLAY_CATALOG;
-}
+export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = GAMEPLAY_CATALOG_BASE.map((entry) => ({
+  ...entry,
+  ...WARDLEY_CATALOG_PROVENANCE,
+}));
 
 export function getGameplayEntry(id: string): GameplayCatalogEntry | undefined {
   return GAMEPLAY_CATALOG.find((e) => e.id === id);

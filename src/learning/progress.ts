@@ -19,7 +19,7 @@ export function loadProgress(): LearningProgress {
   }
 }
 
-export function saveProgress(progress: LearningProgress): void {
+function saveProgress(progress: LearningProgress): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 }

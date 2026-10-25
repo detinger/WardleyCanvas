@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const module01: LearningModule = {
   id: 'purpose-users-needs',
@@ -8,7 +8,7 @@ const module01: LearningModule = {
   tagline: 'Every useful map starts with who has a need — not with a solution.',
   conceptIds: ['anchor', 'user-need', 'value-chain-top'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## Why start with the user?

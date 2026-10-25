@@ -24,7 +24,7 @@ async function depend(page: Page, from: string, to: string) {
 
 test('a new learner completes the first-map challenge by keyboard', async ({ page }) => {
   await page.goto('/learn/purpose-users-needs');
-  await expect(page.getByText('Draft — awaiting expert review')).toBeVisible();
+  await expect(page.getByText('Draft — awaiting expert review')).toHaveCount(0);
   await page.getByRole('button', { name: 'Start challenge' }).focus();
   await page.keyboard.press('Enter');
 
@@ -37,6 +37,10 @@ test('a new learner completes the first-map challenge by keyboard', async ({ pag
   await expect(results).toContainText('Why it matters:');
   await expect(results).toContainText('Try:');
   await expect(page.getByRole('status').first()).toHaveText(/checks passed/);
+  // The check intentionally moves focus after announcing its results. Wait for
+  // that hand-off before selecting a canvas node so the delayed focus cannot
+  // race the next keyboard action under a heavily parallel browser run.
+  await expect(page.locator(':focus')).toContainText(/checks passed/);
   // The example answer is not revealed after a failed attempt
   await expect(page.getByText('Compare with one possible answer')).toHaveCount(0);
 
@@ -97,7 +101,12 @@ test('progress can be exported and reset without touching maps', async ({ page }
   await page.goto('/maps/new');
   await page.waitForURL(/\/maps\/map_/);
   const mapsBefore = await page.evaluate(() => localStorage.getItem('wardleyStudio.maps'));
+  // These direct navigations deliberately replace the document. Let Next's
+  // visible-sidebar route prefetches finish first; WebKit otherwise reports
+  // their expected cancellation as Fetch/CORS console errors.
+  await page.waitForLoadState('networkidle');
   await page.goto('/learn/purpose-users-needs');
+  await page.waitForLoadState('networkidle');
   await page.goto('/learn');
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export progress' }).click()]);
@@ -113,6 +122,8 @@ test('every module opens with its challenge editor', async ({ page }) => {
   const ids = [
     'purpose-users-needs', 'components-value-chains', 'visibility-evolution', 'reading-complete-map',
     'climate-inertia', 'doctrine-operating-context', 'gameplay-hypotheses', 'scenario-comparison-decisions',
+    'case-saas-incident-status', 'case-software-delivery-platform', 'case-managed-database-service',
+    'case-identity-modernisation', 'case-ai-code-review', 'case-security-response-capstone',
   ];
   for (const id of ids) {
     await page.goto(`/learn/${id}`);
@@ -121,4 +132,40 @@ test('every module opens with its challenge editor', async ({ page }) => {
     await expect(page.getByRole('region', { name: 'Practice map editor' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Check my map' })).toBeVisible();
   }
+});
+
+test('learning path presents six IT cases that end in an independent capstone', async ({ page }) => {
+  await page.goto('/learn');
+
+  await expect(page.getByRole('heading', { name: 'Six IT industry case studies' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Case study \d:/ })).toHaveCount(6);
+  await expect(page.getByText('0 of 6 completed')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Case study 6: Security incident response capstone' }).click();
+  await expect(page.getByText('Case study 6 · Independent')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Security incident response capstone' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Start challenge' }).click();
+  await expect(page.getByText('Start by adding an anchor')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Practice map editor' })).toBeVisible();
+});
+
+test('the challenge editor uses the available desktop width', async ({ page }) => {
+  await page.goto('/learn/components-value-chains?tab=challenge');
+
+  const main = page.locator('main');
+  const editor = page.locator('.practice-editor');
+  await expect(editor).toBeVisible();
+
+  const [mainBox, editorBox, canvasBox] = await Promise.all([
+    main.boundingBox(),
+    editor.boundingBox(),
+    editor.locator('.editor-canvas').boundingBox(),
+  ]);
+
+  expect(mainBox).not.toBeNull();
+  expect(editorBox).not.toBeNull();
+  expect(canvasBox).not.toBeNull();
+  expect(editorBox!.width).toBeGreaterThan(mainBox!.width * 0.85);
+  expect(canvasBox!.width).toBeGreaterThan(600);
 });

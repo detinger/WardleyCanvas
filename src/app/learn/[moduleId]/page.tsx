@@ -62,7 +62,9 @@ export default function ModulePage({ params }: Props) {
   const currentIndex = ALL_MODULES.findIndex((m) => m.id === moduleId);
   const next = currentIndex < ALL_MODULES.length - 1 ? ALL_MODULES[currentIndex + 1] : null;
   const prev = currentIndex > 0 ? ALL_MODULES[currentIndex - 1] : null;
-  const isDone = !!progress[mod.id]?.completedAt;
+  const sequenceLabel = mod.caseStudy
+    ? `Case study ${mod.caseStudy.number} · ${mod.caseStudy.guidance}`
+    : `Module ${mod.index}`;
 
   const refreshProgress = () => setProgress(loadProgress().moduleProgress);
 
@@ -85,7 +87,7 @@ export default function ModulePage({ params }: Props) {
             <ArrowLeft size={13} /> Learning path
           </Link>
           <span style={{ color: 'var(--border-strong)', fontSize: 13 }}>/</span>
-          <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>Module {mod.index}</span>
+          <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>{sequenceLabel}</span>
           {mod.meta.reviewStatus === 'draft' && (
             <span
               title={`Version ${mod.meta.version}, last updated ${mod.meta.lastReviewed}. Content has not yet been reviewed by a subject-matter expert.`}
@@ -130,7 +132,16 @@ export default function ModulePage({ params }: Props) {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '24px 28px 48px', maxWidth: 800 }}>
+      <div
+        style={{
+          padding: '24px 28px 48px',
+          // Lesson prose stays comfortably readable, while the challenge needs
+          // the full pane so the canvas is not squeezed by the inspector.
+          maxWidth: tab === 'learn' ? 800 : 'none',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
         {tab === 'learn' ? (
           <LearnTab module={mod} onStartChallenge={() => setTab('challenge')} />
         ) : (
@@ -306,4 +317,3 @@ function ExampleCard({ example }: { example: NonNullable<ReturnType<typeof getMo
 // ---------------------------------------------------------------------------
 // Minimal safe Markdown→HTML (headings, bold, tables, paragraphs only)
 // ---------------------------------------------------------------------------
-

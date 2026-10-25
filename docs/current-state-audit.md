@@ -181,9 +181,11 @@ _Update 2026-10-25 (AUD-02 complete):_
 | Suite | Command | Scope |
 | --- | --- | --- |
 | Vitest | `npm test` | domain commands/editing/migration/validation, editor reducer, OWM parser + round trip, import preview/commit, SVG export, viewport geometry, persistence, scenarios |
-| Playwright | `npm run test:e2e` | Phase 1 slice (create, connect, autosave, save/reopen, draft recovery, keyboard), drag/nudge/duplicate, keyboard dependencies, responsive 1440/1100/820/600/375, themes, import preview/cancel, hostile input, deterministic SVG/JSON/PNG export |
+| Playwright | `npm run test:e2e` | Phase 1 slice (create, connect, autosave, save/reopen, draft recovery, keyboard), drag/nudge/duplicate, keyboard dependencies, responsive 1440/1100/820/600/375, themes, import preview/cancel, hostile input, deterministic SVG/JSON/PNG and printable PDF export |
+| Browser performance | `npm run test:performance` | warm dense-editor readiness, pan/zoom/drag FPS, pointer-to-preview p95 on the 200-component/400-dependency fixture |
+| Visual regression | `npm run test:visual` | nine reviewed states across light/dark and 1440/1100/900/820/375 px |
 
-The E2E suite starts its own dev server on port 9003 with `NEXT_DIST_DIR=.next-e2e`, so it can run beside `npm run dev`.
+The E2E npm lifecycle builds and starts its own production server on port 9003 with `NEXT_DIST_DIR=.next-e2e`, so it can run beside `npm run dev`.
 Fixtures live in `tests/fixtures/` (`legacy-ecommerce.json`, `tea-shop.owm`).
 
 ---
