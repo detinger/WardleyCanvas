@@ -22,7 +22,7 @@ export async function newMap(page: Page) {
 }
 
 export const sourceBox = (page: Page) => page.getByRole('textbox', { name: 'OWM source editor' });
-export const canvas = (page: Page) => page.getByRole('img', { name: 'Wardley map canvas' });
+export const canvas = (page: Page) => page.getByRole('group', { name: 'Wardley map canvas' });
 export const node = (page: Page, name: string) => canvas(page).getByRole('button', { name, exact: true });
 
 export async function typeSource(page: Page, text: string) {

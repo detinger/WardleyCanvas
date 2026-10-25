@@ -104,3 +104,10 @@ describe('analysis updates', () => {
     expect(s.stack.present.analysis.evidence).toHaveLength(1);
   });
 });
+
+it('deleting a selected dependency removes just that dependency', () => {
+  let s = initial();
+  s = reducer(s, { type: 'REMOVE_ELEMENTS', ids: ['d2'] });
+  expect(s.stack.present.dependencies.map((d) => d.id)).toEqual(['d1', 'd3']);
+  expect(s.stack.present.elements).toHaveLength(4);
+});

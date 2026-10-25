@@ -371,7 +371,9 @@ function ConceptCard({
           padding: '3px 9px',
           borderRadius: 999,
           background: color,
-          color: textColor,
+          // Section 4.6 chip: hue on border/background, text at full contrast
+          border: `1px solid ${textColor}`,
+          color: 'var(--text)',
           fontSize: 12,
           fontWeight: 650,
           marginBottom: 10,

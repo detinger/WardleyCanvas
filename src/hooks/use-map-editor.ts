@@ -115,8 +115,9 @@ function removeElementsFromMap(map: WardleyMap, ids: Id[]): WardleyMap {
   return {
     ...map,
     elements: map.elements.filter((el) => !idSet.has(el.id)),
+    // Selected dependency ids are deleted directly; element deletion removes attached ones
     dependencies: map.dependencies.filter(
-      (dep) => !idSet.has(dep.fromId) && !idSet.has(dep.toId)
+      (dep) => !idSet.has(dep.id) && !idSet.has(dep.fromId) && !idSet.has(dep.toId)
     ),
     evolutions: map.evolutions.filter((ev) => !idSet.has(ev.elementId)),
     pipelines: map.pipelines
@@ -299,7 +300,12 @@ export function reducer(state: EditorState, action: Action): EditorState {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useMapEditor(initialMap: WardleyMap, options: { autosave?: boolean } = {}) {
+export function useMapEditor(
+  initialMap: WardleyMap,
+  options: { autosave?: boolean; onDeleteRequest?: (ids: Id[]) => void } = {}
+) {
+  const onDeleteRequestRef = useRef(options.onDeleteRequest);
+  onDeleteRequestRef.current = options.onDeleteRequest;
   const [state, dispatch] = useReducer(reducer, null, () => ({
     stack: makeCommandStack(initialMap),
     selectedIds: [],
@@ -362,7 +368,9 @@ export function useMapEditor(initialMap: WardleyMap, options: { autosave?: boole
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (state.selectedIds.length > 0) {
           e.preventDefault();
-          dispatch({ type: 'REMOVE_ELEMENTS', ids: state.selectedIds });
+          // The host may confirm deletions that affect other parts of the map
+          if (onDeleteRequestRef.current) onDeleteRequestRef.current(state.selectedIds);
+          else dispatch({ type: 'REMOVE_ELEMENTS', ids: state.selectedIds });
         }
       } else if (meta && (e.key === 'd' || e.key === 'D')) {
         if (state.selectedIds.length > 0) {

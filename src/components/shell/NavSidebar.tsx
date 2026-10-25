@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useTheme, NEXT_PREFERENCE } from '@/hooks/use-theme';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   Upload,
   Moon,
   Sun,
+  Monitor,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -57,18 +59,18 @@ const NAV_GROUPS: NavGroup[] = [
   {
     groupLabel: 'Learn',
     items: [
-      { label: 'Learning Path', href: '/learn', icon: <GraduationCap size={18} />, disabled: true },
-      { label: 'Challenges', href: '/learn/challenges', icon: <Trophy size={18} />, disabled: true },
-      { label: 'Reference', href: '/reference', icon: <BookOpen size={18} />, disabled: true },
+      { label: 'Learning Path', href: '/learn', icon: <GraduationCap size={18} /> },
+      { label: 'Challenges', href: '/learn/challenges', icon: <Trophy size={18} /> },
+      { label: 'Reference', href: '/reference', icon: <BookOpen size={18} /> },
     ],
   },
   {
     groupLabel: 'Strategy',
     items: [
-      { label: 'Climate', href: '/climate', icon: <Flame size={18} />, disabled: true },
-      { label: 'Doctrine', href: '/doctrine', icon: <Shield size={18} />, disabled: true },
-      { label: 'Gameplay', href: '/gameplay', icon: <Gamepad2 size={18} />, disabled: true },
-      { label: 'Scenarios', href: '/scenarios', icon: <GitBranch size={18} />, disabled: true },
+      { label: 'Climate', href: '/reference#climate', icon: <Flame size={18} /> },
+      { label: 'Doctrine', href: '/reference#doctrine', icon: <Shield size={18} /> },
+      { label: 'Gameplay', href: '/reference#gameplay', icon: <Gamepad2 size={18} /> },
+      { label: 'Scenarios', href: '/scenarios', icon: <GitBranch size={18} /> },
     ],
   },
   {
@@ -84,33 +86,7 @@ const NAV_GROUPS: NavGroup[] = [
 // Theme toggle (simple implementation)
 // ---------------------------------------------------------------------------
 
-function useTheme() {
-  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'light';
-    return (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ?? 'light';
-  });
 
-  const toggle = React.useCallback(() => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    // Also set class for ShadCN compatibility
-    document.documentElement.classList.toggle('dark', next === 'dark');
-    localStorage.setItem('wardleyStudio.theme', next);
-    setTheme(next);
-  }, [theme]);
-
-  // Restore saved theme on mount
-  React.useEffect(() => {
-    const saved = localStorage.getItem('wardleyStudio.theme') as 'light' | 'dark' | null;
-    const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    const active = saved ?? preferred;
-    document.documentElement.setAttribute('data-theme', active);
-    document.documentElement.classList.toggle('dark', active === 'dark');
-    setTheme(active);
-  }, []);
-
-  return { theme, toggle };
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -123,12 +99,18 @@ interface NavSidebarProps {
 
 export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
   const pathname = usePathname();
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { theme, preference, toggle: toggleTheme } = useTheme();
 
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href.split('?')[0]);
+  // Only the most specific matching item is current (e.g. Challenges, not also Learning Path)
+  const pathOf = (href: string) => href.split(/[?#]/)[0];
+  const matches = (href: string) => {
+    const p = pathOf(href);
+    return p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(`${p}/`);
   };
+  const bestMatch = NAV_GROUPS.flatMap((g) => g.items)
+    .filter((i) => !i.disabled && matches(i.href))
+    .sort((a, b) => pathOf(b.href).length - pathOf(a.href).length)[0]?.href;
+  const isActive = (href: string) => href === bestMatch;
 
   return (
     <aside
@@ -225,8 +207,8 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
       {/* Bottom utilities */}
       <div className="nav-sidebar__utils" style={{ borderTop: '1px solid var(--border)', padding: '8px 0' }}>
         <UtilityButton
-          icon={theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          label={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+          icon={preference === 'system' ? <Monitor size={18} /> : theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+          label={`Theme: ${preference === 'system' ? `system (${theme})` : preference}. Switch to ${NEXT_PREFERENCE[preference]}`}
           onClick={toggleTheme}
           expanded={expanded}
         />

@@ -24,6 +24,9 @@ import {
   Upload,
   Download,
   GitBranch,
+  History,
+  ListTree,
+  Keyboard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ActiveTool, SaveState } from '@/hooks/use-map-editor';
@@ -56,6 +59,9 @@ interface EditorToolbarProps {
   variant?: 'map' | 'practice';
   /** Label for the primary action; defaults to "Save version" */
   primaryLabel?: string;
+  outlineOpen?: boolean;
+  onToggleOutline?: () => void;
+  onShowShortcuts?: () => void;
 }
 
 export default function EditorToolbar({
@@ -81,6 +87,9 @@ export default function EditorToolbar({
   mapId,
   variant = 'map',
   primaryLabel,
+  outlineOpen,
+  onToggleOutline,
+  onShowShortcuts,
 }: EditorToolbarProps) {
   const isPractice = variant === 'practice';
   const router = useRouter();
@@ -235,13 +244,30 @@ export default function EditorToolbar({
 
       <Divider />
 
+      {/* Accessibility: outline and shortcut reference */}
+      {onToggleOutline && (
+        <ToolbarButton icon={<ListTree size={16} />} label={outlineOpen ? 'Hide outline' : 'Show outline'} active={outlineOpen} onClick={onToggleOutline} />
+      )}
+      {onShowShortcuts && (
+        <ToolbarButton icon={<Keyboard size={16} />} label="Keyboard shortcuts (?)" onClick={onShowShortcuts} />
+      )}
+
+      <Divider />
+
       {/* Group 7: import/export */}
       <ToolbarButton icon={<Upload size={16} />} label="Import OWM or JSON" onClick={onImport} />
       <ToolbarButton icon={<Download size={16} />} label="Export map" onClick={onExport} />
 
       <Divider />
 
-      {/* Group 8: scenarios */}
+      {/* Group 8: history and scenarios */}
+      {!isPractice && (
+        <ToolbarButton
+          icon={<History size={16} />}
+          label="Version history"
+          onClick={() => router.push(`/maps/${mapId}/history`)}
+        />
+      )}
       {!isPractice && (
         <ToolbarButton
           icon={<GitBranch size={16} />}

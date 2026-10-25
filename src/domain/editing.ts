@@ -79,3 +79,50 @@ export function describeDependency(fromName: string, toName: string): string {
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
+
+export interface DeletionImpactItem {
+  kind: 'dependency' | 'evolve' | 'pipeline' | 'assessment' | 'evidence-link';
+  description: string;
+}
+
+/**
+ * Section 15.2: everything that refers to the elements about to be deleted.
+ * Dependencies *between* deleted elements are not listed; dependencies from
+ * remaining elements are (those elements lose part of their value chain).
+ */
+export function deletionImpact(map: WardleyMap, ids: Id[]): DeletionImpactItem[] {
+  const del = new Set(ids);
+  const name = (id: Id) => map.elements.find((e) => e.id === id)?.name ?? id;
+  const items: DeletionImpactItem[] = [];
+
+  for (const d of map.dependencies) {
+    const fromDeleted = del.has(d.fromId);
+    const toDeleted = del.has(d.toId);
+    if (toDeleted && !fromDeleted) {
+      items.push({ kind: 'dependency', description: `${name(d.fromId)} depends on ${name(d.toId)}` });
+    } else if (fromDeleted && !toDeleted) {
+      items.push({ kind: 'dependency', description: `${name(d.fromId)} depends on ${name(d.toId)}` });
+    }
+  }
+  for (const ev of map.evolutions) {
+    if (del.has(ev.elementId)) items.push({ kind: 'evolve', description: `Evolve arrow on ${name(ev.elementId)}` });
+  }
+  for (const p of map.pipelines) {
+    if (del.has(p.parentElementId)) items.push({ kind: 'pipeline', description: `Pipeline of ${name(p.parentElementId)}` });
+    else if (p.memberElementIds.some((m) => del.has(m))) {
+      items.push({ kind: 'pipeline', description: `Membership in the ${name(p.parentElementId)} pipeline` });
+    }
+  }
+  const layers: [string, { appliesToIds: Id[] }[]][] = [
+    ['climate', map.analysis.climate],
+    ['doctrine', map.analysis.doctrine],
+    ['gameplay', map.analysis.gameplay],
+  ];
+  for (const [layer, list] of layers) {
+    const n = list.filter((a) => a.appliesToIds.some((id) => del.has(id))).length;
+    if (n) items.push({ kind: 'assessment', description: `${n} ${layer} assessment${n === 1 ? ' refers' : 's refer'} to it (the reference is removed)` });
+  }
+  const evidenced = map.elements.filter((e) => del.has(e.id) && e.evidenceIds?.length).length;
+  if (evidenced) items.push({ kind: 'evidence-link', description: 'Its evidence links (evidence records themselves are kept)' });
+  return items;
+}

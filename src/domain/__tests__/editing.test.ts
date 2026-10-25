@@ -53,3 +53,33 @@ describe('duplicateElements', () => {
 it('describeDependency states the direction in words', () => {
   expect(describeDependency('Website', 'Payments')).toBe('Website depends on Payments');
 });
+
+describe('deletionImpact', async () => {
+  const { deletionImpact } = await import('../editing');
+
+  it('is empty for an element nothing refers to', () => {
+    const map = sampleMap();
+    map.dependencies = map.dependencies.filter((d) => d.toId !== 'b');
+    expect(deletionImpact(map, ['b'])).toEqual([]);
+  });
+
+  it('lists dependencies, evolve arrows, pipelines and assessments', () => {
+    const map = sampleMap();
+    map.evolutions = [{ id: 'ev', elementId: 'a', targetEvolution: 0.9 }];
+    map.pipelines = [{ id: 'p', parentElementId: 'need', memberElementIds: ['a'], startEvolution: 0.2, endEvolution: 0.8 }];
+    map.analysis.climate = [{ id: 'c', catalogId: 'cp-001', appliesToIds: ['a'], state: 'applies', rationale: 'r', evidenceIds: [], confidence: 'low' }];
+    const items = deletionImpact(map, ['a']).map((i) => i.description);
+    expect(items).toEqual([
+      'Need depends on A',
+      'Evolve arrow on A',
+      'Membership in the Need pipeline',
+      '1 climate assessment refers to it (the reference is removed)',
+    ]);
+  });
+
+  it('ignores dependencies between elements deleted together', () => {
+    const map = sampleMap();
+    const items = deletionImpact(map, ['need', 'a', 'b']).map((i) => i.description);
+    expect(items).toEqual(['User depends on Need']);
+  });
+});

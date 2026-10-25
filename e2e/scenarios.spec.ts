@@ -7,6 +7,7 @@ import { mapWith, node } from './helpers';
 
 async function saveVersion(page: Page) {
   await page.getByRole('button', { name: 'Save version' }).click();
+  await page.getByRole('dialog', { name: 'Save version' }).getByRole('button', { name: 'Save version' }).click();
   await expect(page.getByText(/Revision \d+ saved/).first()).toBeVisible();
 }
 

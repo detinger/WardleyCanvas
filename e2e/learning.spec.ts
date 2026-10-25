@@ -4,7 +4,7 @@ import { test, expect, Page } from './fixtures';
 // feedback, LRN-02 progress, example answer only after completion.
 
 const node = (page: Page, name: string) =>
-  page.getByRole('img', { name: 'Wardley map canvas' }).getByRole('button', { name, exact: true });
+  page.getByRole('group', { name: 'Wardley map canvas' }).getByRole('button', { name, exact: true });
 const inspector = (page: Page) => page.getByRole('complementary', { name: 'Map inspector' });
 
 async function rename(page: Page, to: string) {

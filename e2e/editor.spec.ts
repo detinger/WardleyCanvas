@@ -89,14 +89,24 @@ test('switching theme keeps editor state and recolours the canvas', async ({ pag
   await selectByKeyboard(page, 'Kettle');
   const bg = () => canvas(page).evaluate((el) => getComputedStyle(el).backgroundColor);
   const light = await bg();
-  const toggle = page.getByRole('button', { name: /^(Dark|Light) theme$/ });
+  const toggle = page.getByRole('button', { name: /^Theme: / });
+  // Cycle: system -> light -> dark -> system
+  await expect(toggle).toHaveAccessibleName(/system \(light\)/);
   await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: light/);
+  expect(await bg()).toBe(light);
+  await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
   const dark = await bg();
   expect(dark).not.toBe(light);
   await expect(node(page, 'Kettle')).toHaveAttribute('aria-pressed', 'true');
   await expect(node(page, 'Power')).toBeVisible();
   await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: system/);
   expect(await bg()).toBe(light);
+  // Following the system: an OS switch to dark applies immediately
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(bg).toBe(dark);
 });
 
 test('an empty map shows a clear next step', async ({ page }) => {

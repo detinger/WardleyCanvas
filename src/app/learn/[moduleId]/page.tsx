@@ -30,6 +30,8 @@ export default function ModulePage({ params }: Props) {
   React.useEffect(() => {
     if (mod) markModuleStarted(mod.id);
     setProgress(loadProgress().moduleProgress);
+    // Deep link from the challenges index: /learn/<id>?tab=challenge
+    if (new URLSearchParams(window.location.search).get('tab') === 'challenge') setTab('challenge');
   }, [mod]);
 
   if (!mod) {
@@ -87,7 +89,7 @@ export default function ModulePage({ params }: Props) {
           {mod.meta.reviewStatus === 'draft' && (
             <span
               title={`Version ${mod.meta.version}, last updated ${mod.meta.lastReviewed}. Content has not yet been reviewed by a subject-matter expert.`}
-              style={{ fontSize: 11, fontWeight: 650, padding: '0 7px', height: 20, display: 'inline-flex', alignItems: 'center', borderRadius: 999, border: '1px solid var(--warning)', color: 'var(--warning)' }}
+              style={{ fontSize: 11, fontWeight: 650, padding: '0 7px', height: 20, display: 'inline-flex', alignItems: 'center', borderRadius: 999, border: '1px solid var(--warning)', background: 'var(--warning-soft)', color: 'var(--text)' }}
             >
               Draft — awaiting expert review
             </span>

@@ -303,7 +303,8 @@ export default function CanvasRenderer({
       viewBox={viewboxToString(viewBox)}
       style={{ background: 'var(--canvas-bg)', cursor, userSelect: 'none', display: 'block' }}
       aria-label="Wardley map canvas"
-      role="img"
+      aria-roledescription="map canvas"
+      role="group"
       onPointerDown={handleCanvasPointerDown}
       onPointerMove={handleCanvasPointerMove}
       onPointerUp={handleCanvasPointerUp}

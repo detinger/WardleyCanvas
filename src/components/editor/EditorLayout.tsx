@@ -17,6 +17,10 @@ import { commitImport } from '@/parser/import';
 import ExportDialog from './ExportDialog';
 import ImportDialog from './ImportDialog';
 import { useToast } from '@/hooks/use-toast';
+import MapOutline from './MapOutline';
+import { DeleteConfirmDialog, ShortcutsDialog, SaveVersionDialog, DeleteRequestContext } from './EditorDialogs';
+import { deletionImpact } from '@/domain/editing';
+import { countBySeverity } from '@/domain/validation';
 
 type EditorMode = 'visual' | 'split' | 'source';
 
@@ -36,12 +40,43 @@ interface EditorLayoutProps {
 }
 
 export default function EditorLayout({ initialMap, practice }: EditorLayoutProps) {
-  const editor = useMapEditor(initialMap, { autosave: !practice });
+  const requestDeleteRef = React.useRef<(ids: Id[]) => void>(() => {});
+  const editor = useMapEditor(initialMap, {
+    autosave: !practice,
+    onDeleteRequest: (ids) => requestDeleteRef.current(ids),
+  });
   const { map, state, saveState } = editor;
   const { toast } = useToast();
   const [editorMode, setEditorMode] = React.useState<EditorMode>('visual');
   const [showExport, setShowExport] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
+  const [showOutline, setShowOutline] = React.useState(false);
+  const [showShortcuts, setShowShortcuts] = React.useState(false);
+  const [showSave, setShowSave] = React.useState(false);
+  const [pendingDelete, setPendingDelete] = React.useState<Id[] | null>(null);
+  const [announcement, setAnnouncement] = React.useState('');
+
+  // Section 15.2: deleting something other parts of the map rely on is previewed first
+  const requestDelete = React.useCallback((ids: Id[]) => {
+    if (ids.length === 0) return;
+    if (deletionImpact(editor.map, ids).length === 0) editor.removeElements(ids);
+    else setPendingDelete(ids);
+  }, [editor]);
+  requestDeleteRef.current = requestDelete;
+
+  // '?' opens the shortcut reference
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.closest?.('[role="dialog"]')) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Callbacks for viewport control (passed down to CanvasRenderer)
   const fitRef = React.useRef<() => void>(() => {});
@@ -117,7 +152,7 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
   // Save
   // --------------------------------------------------------------------------
 
-  const handleSaveVersion = React.useCallback(() => {
+  const handleSaveVersion = React.useCallback((note?: string) => {
     const findings = validateMap(map);
     const errors = findings.filter((f) => f.severity === 'error');
     if (errors.length > 0) {
@@ -128,7 +163,7 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
       });
       return;
     }
-    const committed = commitVersion(map);
+    const committed = commitVersion(map, note || undefined);
     editor.loadMap(committed);
     editor.markClean();
     toast({ title: 'Version saved', description: `Revision ${committed.revision} saved.` });
@@ -149,7 +184,39 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
     if (onPracticeChange && !dragging) onPracticeChange(map);
   }, [map, dragging, onPracticeChange]);
 
+  // Section 6.5: announce selection, creation/deletion, validation totals and save state
+  const prevRef = React.useRef({ ids: editor.selectedIds, count: map.elements.length, errors: -1, save: saveState });
+  React.useEffect(() => {
+    if (dragging) return;
+    const prev = prevRef.current;
+    const msgs: string[] = [];
+    const nameOf = (id: Id) =>
+      map.elements.find((e) => e.id === id)?.name ??
+      (map.dependencies.some((d) => d.id === id) ? 'dependency' : null);
+    if (map.elements.length > prev.count) {
+      const added = map.elements.slice(prev.count).map((e) => e.name);
+      msgs.push(`Added ${added.join(', ')}.`);
+    } else if (map.elements.length < prev.count) {
+      const n = prev.count - map.elements.length;
+      msgs.push(`Deleted ${n} element${n === 1 ? '' : 's'}.`);
+    }
+    if (editor.selectedIds.join() !== prev.ids.join()) {
+      const names = editor.selectedIds.map(nameOf).filter(Boolean);
+      msgs.push(names.length ? `Selected ${names.join(', ')}.` : 'Selection cleared.');
+    }
+    const errors = countBySeverity(validateMap(map)).error;
+    if (prev.errors !== -1 && errors !== prev.errors) {
+      msgs.push(errors === 0 ? 'No structural errors.' : `${errors} structural error${errors === 1 ? '' : 's'}.`);
+    }
+    if (saveState !== prev.save && (saveState === 'saved' || saveState === 'error')) {
+      msgs.push(saveState === 'saved' ? 'Saved.' : 'Could not save.');
+    }
+    prevRef.current = { ids: editor.selectedIds, count: map.elements.length, errors, save: saveState };
+    if (msgs.length) setAnnouncement(msgs.join(' '));
+  }, [map, editor.selectedIds, saveState, dragging]);
+
   return (
+    <DeleteRequestContext.Provider value={requestDelete}>
     <div
       style={{
         display: 'flex',
@@ -170,7 +237,10 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
         hasSelection={editor.selectedIds.length > 0}
         onUndo={editor.undo}
         onRedo={editor.redo}
-        onDelete={() => editor.removeElements(editor.selectedIds)}
+        onDelete={() => requestDelete(editor.selectedIds)}
+        outlineOpen={showOutline}
+        onToggleOutline={() => setShowOutline((v) => !v)}
+        onShowShortcuts={() => setShowShortcuts(true)}
         onSetTool={(tool, viaKeyboard) => {
           if (viaKeyboard && (tool === 'add-anchor' || tool === 'add-component')) {
             editor.placeElement(tool === 'add-anchor' ? 'anchor' : 'component');
@@ -181,7 +251,7 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
         onFitMap={() => fitRef.current()}
         onZoomIn={() => zoomInRef.current()}
         onZoomOut={() => zoomOutRef.current()}
-        onSaveVersion={practice ? practice.onPrimary : handleSaveVersion}
+        onSaveVersion={practice ? practice.onPrimary : () => setShowSave(true)}
         variant={practice ? 'practice' : 'map'}
         primaryLabel={practice?.primaryLabel}
         linkSourceId={editor.linkSourceId}
@@ -193,7 +263,15 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
       />
 
       {/* Canvas + Inspector (visual/split/source modes) */}
+      {/* Polite live region for editor announcements */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-testid="editor-announcer">
+        {announcement}
+      </div>
+
       <div className="editor-main">
+        {showOutline && editorMode !== 'source' && (
+          <MapOutline map={map} selectedIds={editor.selectedIds} onSelect={(id) => editor.select([id])} />
+        )}
         {/* Canvas pane — hidden in source-only mode */}
         {editorMode !== 'source' && (
           <div className="editor-canvas">
@@ -256,7 +334,29 @@ export default function EditorLayout({ initialMap, practice }: EditorLayoutProps
           onClose={() => setShowImport(false)}
         />
       )}
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {showSave && (
+        <SaveVersionDialog
+          onSave={(note) => {
+            setShowSave(false);
+            handleSaveVersion(note);
+          }}
+          onCancel={() => setShowSave(false)}
+        />
+      )}
+      {pendingDelete && (
+        <DeleteConfirmDialog
+          names={pendingDelete.map((id) => map.elements.find((e) => e.id === id)?.name ?? 'dependency')}
+          impact={deletionImpact(map, pendingDelete)}
+          onConfirm={() => {
+            editor.removeElements(pendingDelete);
+            setPendingDelete(null);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
+    </DeleteRequestContext.Provider>
   );
 }
 

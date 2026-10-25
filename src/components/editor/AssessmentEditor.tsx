@@ -53,6 +53,11 @@ export default function AssessmentEditor<T extends AnyAssessment>({
       onMouseEnter={() => onHighlight?.(affected)}
       style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}
     >
+      {!assessment.rationale.trim() && (
+        <p role="note" style={{ margin: 0, fontSize: 12, color: 'var(--warning)' }}>
+          Incomplete: add a rationale. Assessments without one are flagged in the summary and exports.
+        </p>
+      )}
       <CommitText
         id={`${idBase}-rationale`}
         label={kind === 'gameplay' ? 'Rationale — why this play fits this landscape' : 'Rationale — why you made this assessment'}

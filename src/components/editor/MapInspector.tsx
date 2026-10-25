@@ -10,6 +10,7 @@ import { ValidationFinding, ValidationSeverity, validateMap, countBySeverity } f
 import { useMapEditor } from '@/hooks/use-map-editor';
 import { describeDependency } from '@/domain/editing';
 import AssessmentEditor, { CommitText } from './AssessmentEditor';
+import { DeleteRequestContext } from './EditorDialogs';
 import { summarizeAnalysis, DOCTRINE_STATES } from '@/analysis/summary';
 import { sanitizeUrl } from '@/parser/owm';
 import { CLIMATE_CATALOG, CLIMATE_CATEGORIES } from '@/analysis/climate-catalog';
@@ -355,6 +356,7 @@ function ElementDetails({
   map: WardleyMap;
   editor: ReturnType<typeof useMapEditor>;
 }) {
+  const requestDelete = React.useContext(DeleteRequestContext) ?? editor.removeElements;
   const [name, setName] = React.useState(element.name);
   const [description, setDescription] = React.useState(element.description ?? '');
   const [visInput, setVisInput] = React.useState(element.visibility.toFixed(3));
@@ -404,7 +406,7 @@ function ElementDetails({
           {element.kind}
         </span>
         <button
-          onClick={() => editor.removeElements([element.id])}
+          onClick={() => requestDelete([element.id])}
           aria-label={`Delete ${element.name}`}
           style={{
             width: 28, height: 28,
@@ -1893,7 +1895,7 @@ function StatTile({ label, value }: { label: string; value: string | number }) {
         gap: 2,
       }}
     >
-      <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</span>
       <span
         style={{
           fontSize: 22,

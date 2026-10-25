@@ -178,7 +178,7 @@ export default function MapsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-subtle)', marginRight: 4 }}>Sort:</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 4 }}>Sort:</span>
           {(
             [
               { field: 'updatedAt' as SortField, label: 'Recent' },
@@ -527,7 +527,7 @@ function FirstMapOnboarding({ onCreate }: { onCreate: () => void }) {
       </div>
 
       {/* Reassurance note */}
-      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-subtle)', margin: 0 }}>
+      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
         All maps are stored locally in your browser — nothing is sent to a server.
       </p>
     </div>

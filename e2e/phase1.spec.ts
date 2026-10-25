@@ -29,7 +29,7 @@ async function typeSource(page: Page, text: string) {
   return editor;
 }
 
-const canvas = (page: Page) => page.getByRole('img', { name: 'Wardley map canvas' });
+const canvas = (page: Page) => page.getByRole('group', { name: 'Wardley map canvas' });
 
 test('source edits render, autosave, and survive reload', async ({ page }) => {
   const url = await newMap(page);
@@ -71,6 +71,7 @@ test('save version, reopen, and no spurious recovery prompt', async ({ page }) =
   await expect(canvas(page).getByRole('button', { name: 'Kettle', exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Save version' }).click();
+  await page.getByRole('dialog', { name: 'Save version' }).getByRole('button', { name: 'Save version' }).click();
   await expect(page.getByText(/Revision \d+ saved/).first()).toBeVisible();
 
   await page.goto(url);
@@ -85,6 +86,7 @@ test('a newer draft is offered and actually restored', async ({ page }) => {
   const url = await newMap(page);
   await typeSource(page, SOURCE);
   await page.getByRole('button', { name: 'Save version' }).click();
+  await page.getByRole('dialog', { name: 'Save version' }).getByRole('button', { name: 'Save version' }).click();
   await expect(page.getByText(/Revision \d+ saved/).first()).toBeVisible();
 
   // Simulate a crash: a draft that differs from the saved map
@@ -110,6 +112,8 @@ test('keyboard: select an element and delete it, then undo', async ({ page }) =>
   await kettle.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Delete');
+  // Hot Water depends on Kettle, so deletion is confirmed first
+  await page.getByRole('dialog', { name: /Delete “Kettle”/ }).getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(kettle).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+z');
   await expect(canvas(page).getByRole('button', { name: 'Kettle', exact: true })).toBeVisible();
