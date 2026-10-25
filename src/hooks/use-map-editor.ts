@@ -83,6 +83,8 @@ type Action =
   | { type: 'SET_TITLE'; title: string }
   | { type: 'SET_PURPOSE'; purpose: string }
   | { type: 'UPDATE_ANALYSIS'; analysis: AnalysisLayer }
+  /** Functional update against the current analysis, so consecutive edits never overwrite each other */
+  | { type: 'MAP_ANALYSIS'; fn: (analysis: AnalysisLayer) => AnalysisLayer }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'SET_TOOL'; tool: ActiveTool }
@@ -248,6 +250,9 @@ export function reducer(state: EditorState, action: Action): EditorState {
 
     case 'UPDATE_ANALYSIS':
       return withUpdatedMap(state, { ...map, analysis: action.analysis });
+
+    case 'MAP_ANALYSIS':
+      return withUpdatedMap(state, { ...map, analysis: action.fn(map.analysis) });
 
     case 'UNDO':
       return canUndo(state.stack)
@@ -541,62 +546,57 @@ export function useMapEditor(initialMap: WardleyMap, options: { autosave?: boole
   }, []);
 
   // Analysis layer helpers
+  // Analysis actions use functional updates: callers may chain them (add evidence, then link it)
+  const mapAnalysis = useCallback((fn: (a: AnalysisLayer) => AnalysisLayer) => {
+    dispatch({ type: 'MAP_ANALYSIS', fn });
+  }, []);
+
+  const upsertById = <T extends { id: Id }>(list: T[], item: T): T[] =>
+    list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
+
   const addEvidence = useCallback((ev: Evidence) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, evidence: [...analysis.evidence, ev] } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, evidence: [...a.evidence, ev] }));
+  }, [mapAnalysis]);
 
   const updateEvidence = useCallback((id: Id, changes: Partial<Evidence>) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, evidence: analysis.evidence.map((e) => e.id === id ? { ...e, ...changes } : e) } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, evidence: a.evidence.map((e) => (e.id === id ? { ...e, ...changes } : e)) }));
+  }, [mapAnalysis]);
 
   const removeEvidence = useCallback((id: Id) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, evidence: analysis.evidence.filter((e) => e.id !== id) } });
-  }, [state.stack.present.analysis]);
+    // Also unlink it from every assessment so no dangling references remain
+    const unlink = <T extends { evidenceIds: Id[] }>(x: T): T => ({ ...x, evidenceIds: x.evidenceIds.filter((e) => e !== id) });
+    mapAnalysis((a) => ({
+      ...a,
+      evidence: a.evidence.filter((e) => e.id !== id),
+      climate: a.climate.map(unlink),
+      doctrine: a.doctrine.map(unlink),
+      gameplay: a.gameplay.map(unlink),
+    }));
+  }, [mapAnalysis]);
 
   const upsertClimateAssessment = useCallback((assessment: PatternAssessment) => {
-    const analysis = state.stack.present.analysis;
-    const existing = analysis.climate.findIndex((a) => a.id === assessment.id);
-    const climate = existing >= 0
-      ? analysis.climate.map((a) => a.id === assessment.id ? assessment : a)
-      : [...analysis.climate, assessment];
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, climate } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, climate: upsertById(a.climate, assessment) }));
+  }, [mapAnalysis]);
 
   const removeClimateAssessment = useCallback((id: Id) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, climate: analysis.climate.filter((a) => a.id !== id) } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, climate: a.climate.filter((x) => x.id !== id) }));
+  }, [mapAnalysis]);
 
   const upsertDoctrineAssessment = useCallback((assessment: DoctrineAssessment) => {
-    const analysis = state.stack.present.analysis;
-    const existing = analysis.doctrine.findIndex((a) => a.id === assessment.id);
-    const doctrine = existing >= 0
-      ? analysis.doctrine.map((a) => a.id === assessment.id ? assessment : a)
-      : [...analysis.doctrine, assessment];
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, doctrine } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, doctrine: upsertById(a.doctrine, assessment) }));
+  }, [mapAnalysis]);
 
   const removeDoctrineAssessment = useCallback((id: Id) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, doctrine: analysis.doctrine.filter((a) => a.id !== id) } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, doctrine: a.doctrine.filter((x) => x.id !== id) }));
+  }, [mapAnalysis]);
 
   const upsertGameplayHypothesis = useCallback((hypothesis: GameplayHypothesis) => {
-    const analysis = state.stack.present.analysis;
-    const existing = analysis.gameplay.findIndex((g) => g.id === hypothesis.id);
-    const gameplay = existing >= 0
-      ? analysis.gameplay.map((g) => g.id === hypothesis.id ? hypothesis : g)
-      : [...analysis.gameplay, hypothesis];
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, gameplay } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, gameplay: upsertById(a.gameplay, hypothesis) }));
+  }, [mapAnalysis]);
 
   const removeGameplayHypothesis = useCallback((id: Id) => {
-    const analysis = state.stack.present.analysis;
-    dispatch({ type: 'UPDATE_ANALYSIS', analysis: { ...analysis, gameplay: analysis.gameplay.filter((g) => g.id !== id) } });
-  }, [state.stack.present.analysis]);
+    mapAnalysis((a) => ({ ...a, gameplay: a.gameplay.filter((x) => x.id !== id) }));
+  }, [mapAnalysis]);
 
   return {
     map,

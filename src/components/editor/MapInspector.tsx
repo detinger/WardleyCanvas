@@ -10,6 +10,7 @@ import { ValidationFinding, ValidationSeverity, validateMap, countBySeverity } f
 import { useMapEditor } from '@/hooks/use-map-editor';
 import { describeDependency } from '@/domain/editing';
 import AssessmentEditor, { CommitText } from './AssessmentEditor';
+import { summarizeAnalysis, DOCTRINE_STATES } from '@/analysis/summary';
 import { sanitizeUrl } from '@/parser/owm';
 import { CLIMATE_CATALOG, CLIMATE_CATEGORIES } from '@/analysis/climate-catalog';
 import { DOCTRINE_CATALOG, DOCTRINE_PHASES } from '@/analysis/doctrine-catalog';
@@ -1340,7 +1341,7 @@ function ConfidencePip({ confidence }: { confidence: Confidence }) {
 // Analysis panel (ANL-02/03/04): Climate, Doctrine, Gameplay
 // ---------------------------------------------------------------------------
 
-type AnalysisSubTab = 'climate' | 'doctrine' | 'gameplay';
+type AnalysisSubTab = 'summary' | 'climate' | 'doctrine' | 'gameplay';
 
 function AnalysisPanel({
   map,
@@ -1349,13 +1350,14 @@ function AnalysisPanel({
   map: WardleyMap;
   editor: ReturnType<typeof useMapEditor>;
 }) {
-  const [sub, setSub] = React.useState<AnalysisSubTab>('climate');
+  const [sub, setSub] = React.useState<AnalysisSubTab>('summary');
 
   const climateBadge = map.analysis.climate.length;
   const doctrineBadge = map.analysis.doctrine.length;
   const gameplayBadge = map.analysis.gameplay.length;
 
   const subTabs: { id: AnalysisSubTab; label: string; badge: number; icon: React.ReactNode }[] = [
+    { id: 'summary', label: 'Summary', badge: 0, icon: <Info size={12} /> },
     { id: 'climate', label: 'Climate', badge: climateBadge, icon: <Zap size={12} /> },
     { id: 'doctrine', label: 'Doctrine', badge: doctrineBadge, icon: <Shield size={12} /> },
     { id: 'gameplay', label: 'Gameplay', badge: gameplayBadge, icon: <BookOpen size={12} /> },
@@ -1369,6 +1371,7 @@ function AnalysisPanel({
           <button
             key={t.id}
             onClick={() => setSub(t.id)}
+            aria-pressed={sub === t.id}
             style={{
               flex: 1,
               height: 30,
@@ -1396,6 +1399,7 @@ function AnalysisPanel({
         ))}
       </div>
 
+      {sub === 'summary' && <AnalysisSummaryPanel map={map} onOpen={setSub} />}
       {sub === 'climate' && <ClimateSubPanel map={map} editor={editor} />}
       {sub === 'doctrine' && <DoctrineSubPanel map={map} editor={editor} />}
       {sub === 'gameplay' && <GameplaySubPanel map={map} editor={editor} />}
@@ -1403,6 +1407,117 @@ function AnalysisPanel({
       <p style={{ marginTop: 16, fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.5 }}>
         Analysis is context-specific. Catalog descriptions are definitions; assessments are map-specific hypotheses that require human rationale.
       </p>
+    </div>
+  );
+}
+
+// ---- Summary sub-panel (ANL-01/03): all assessments, transparent counts, no score ----
+
+function AnalysisSummaryPanel({ map, onOpen }: { map: WardleyMap; onOpen: (tab: AnalysisSubTab) => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const summary = React.useMemo(() => summarizeAnalysis(map, today), [map, today]);
+  const c = summary.counts;
+  const total = c.climate + c.doctrine + c.gameplay;
+
+  if (total === 0 && c.evidence === 0) {
+    return (
+      <EmptyState
+        message="No analysis yet."
+        sub="Start with Climate to ask which external patterns apply to this map."
+      />
+    );
+  }
+
+  const attention = [
+    c.reviewDue && `${c.reviewDue} assessment${c.reviewDue === 1 ? '' : 's'} due for review`,
+    c.evidenceReviewDue && `${c.evidenceReviewDue} evidence record${c.evidenceReviewDue === 1 ? '' : 's'} due for review`,
+    c.withoutRationale && `${c.withoutRationale} without a rationale`,
+    c.withoutEvidence && `${c.withoutEvidence} without evidence`,
+    c.gameplayUnreviewed && `${c.gameplayUnreviewed} gameplay hypothes${c.gameplayUnreviewed === 1 ? 'is' : 'es'} not yet reviewed for risks and ethics`,
+  ].filter(Boolean) as string[];
+
+  const cell: React.CSSProperties = { padding: '5px 6px', borderBottom: '1px solid var(--border-subtle)', fontSize: 12, verticalAlign: 'top', textAlign: 'left' };
+  const head: React.CSSProperties = { ...cell, fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', position: 'sticky', top: 0, background: 'var(--bg-elevated)' };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
+        <StatTile label="Climate" value={c.climate} />
+        <StatTile label="Doctrine" value={c.doctrine} />
+        <StatTile label="Gameplay" value={c.gameplay} />
+        <StatTile label="Evidence" value={c.evidence} />
+      </div>
+
+      {attention.length > 0 && (
+        <div role="note" aria-label="Needs attention" style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--warning)', background: 'var(--warning-soft)', fontSize: 12, color: 'var(--text)' }}>
+          <strong>Needs attention</strong>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+            {attention.map((a) => <li key={a}>{a}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {summary.rows.length > 0 && (
+        <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <caption style={{ textAlign: 'left', fontSize: 12, fontWeight: 600, padding: '6px', color: 'var(--text)' }}>All assessments</caption>
+            <thead>
+              <tr>
+                <th scope="col" style={head}>Type</th>
+                <th scope="col" style={head}>Pattern / principle / play</th>
+                <th scope="col" style={head}>Status</th>
+                <th scope="col" style={head}>Evidence</th>
+                <th scope="col" style={head}>Review</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.rows.map((r) => (
+                <tr key={r.id}>
+                  <td style={cell}>
+                    <button type="button" onClick={() => onOpen(r.kind)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', fontSize: 12, textTransform: 'capitalize' }}>
+                      {r.kind}
+                    </button>
+                  </td>
+                  <td style={cell}>
+                    {r.title}
+                    {r.affects.length > 0 && <div style={{ color: 'var(--text-subtle)', fontSize: 11 }}>Affects: {r.affects.join(', ')}</div>}
+                  </td>
+                  <td style={cell}>
+                    {r.status.replace(/-/g, ' ')}
+                    {r.humanReviewed === false && <div style={{ color: 'var(--warning)', fontSize: 11 }}>Not reviewed</div>}
+                  </td>
+                  <td style={cell}>{r.evidenceCount}</td>
+                  <td style={cell}>{r.reviewAt ? `${r.reviewAt}${r.reviewDue ? ' (due)' : ''}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {c.doctrine > 0 && (
+        <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <caption style={{ textAlign: 'left', fontSize: 12, fontWeight: 600, padding: '6px', color: 'var(--text)' }}>
+              Doctrine by phase (counts of principles, not a score)
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" style={head}>Phase</th>
+                {DOCTRINE_STATES.map((st) => <th key={st} scope="col" style={head}>{st.replace(/-/g, ' ')}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {summary.doctrineByPhase.map((p) => (
+                <tr key={p.phase}>
+                  <th scope="row" style={{ ...cell, fontWeight: 600 }}>{p.phase}. {p.label}</th>
+                  {DOCTRINE_STATES.map((st) => <td key={st} style={cell}>{p.states[st]}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -1447,7 +1562,7 @@ function ClimateSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType<
       {filtered.map((entry) => {
         const assessment = map.analysis.climate.find((a) => a.catalogId === entry.id);
         return (
-          <div key={entry.id} style={{ padding: 10, borderRadius: 8, border: `1px solid ${assessed.has(entry.id) ? 'var(--primary)' : 'var(--border)'}`, background: 'var(--bg-elevated)' }}>
+          <div key={entry.id} role="group" aria-label={entry.shortTitle} style={{ padding: 10, borderRadius: 8, border: `1px solid ${assessed.has(entry.id) ? 'var(--primary)' : 'var(--border)'}`, background: 'var(--bg-elevated)' }}>
             <div style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)', marginBottom: 4 }}>{entry.shortTitle}</div>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.5 }}>{entry.description}</p>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -1539,7 +1654,7 @@ function DoctrineSubPanel({ map, editor }: { map: WardleyMap; editor: ReturnType
         const assessment = map.analysis.doctrine.find((a) => a.catalogId === entry.id);
         const capStates: DoctrineAssessment['capabilityState'][] = ['not-started', 'emerging', 'practiced', 'embedded', 'not-applicable'];
         return (
-          <div key={entry.id} style={{ padding: 10, borderRadius: 8, border: `1px solid ${assessment ? 'var(--primary)' : 'var(--border)'}`, background: 'var(--bg-elevated)' }}>
+          <div key={entry.id} role="group" aria-label={entry.shortTitle} style={{ padding: 10, borderRadius: 8, border: `1px solid ${assessment ? 'var(--primary)' : 'var(--border)'}`, background: 'var(--bg-elevated)' }}>
             <div style={{ fontSize: 11, fontWeight: 650, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Phase {entry.phase} · {entry.category}</div>
             <div style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)', marginBottom: 4 }}>{entry.shortTitle}</div>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.5 }}>{entry.definition}</p>

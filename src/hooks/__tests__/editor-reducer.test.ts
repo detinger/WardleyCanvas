@@ -88,3 +88,19 @@ describe('nudge and duplicate', () => {
     expect(s.stack.present.pipelines).toEqual([]);
   });
 });
+
+describe('analysis updates', () => {
+  it('consecutive functional updates never overwrite each other', () => {
+    let s = initial();
+    s = reducer(s, { type: 'MAP_ANALYSIS', fn: (a) => ({ ...a, evidence: [...a.evidence, { id: 'e1', claim: 'c', confidence: 'low' }] }) });
+    s = reducer(s, {
+      type: 'MAP_ANALYSIS',
+      fn: (a) => ({ ...a, climate: [...a.climate, { id: 'c1', catalogId: 'cp-001', appliesToIds: [], state: 'applies', rationale: 'r', evidenceIds: ['e1'], confidence: 'low' }] }),
+    });
+    expect(s.stack.present.analysis.evidence.map((e) => e.id)).toEqual(['e1']);
+    expect(s.stack.present.analysis.climate[0].evidenceIds).toEqual(['e1']);
+    s = reducer(s, { type: 'UNDO' });
+    expect(s.stack.present.analysis.climate).toEqual([]);
+    expect(s.stack.present.analysis.evidence).toHaveLength(1);
+  });
+});

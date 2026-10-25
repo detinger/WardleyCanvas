@@ -11,9 +11,7 @@ import { owmLossReport } from '@/parser/import';
 import { renderMapSVG, exportSize, ExportTheme } from '@/renderer/svg-export';
 import DialogOverlay from './DialogOverlay';
 import { Download, X, FileJson, FileCode2, Image, BarChart2 } from 'lucide-react';
-import { CLIMATE_CATALOG } from '@/analysis/climate-catalog';
-import { DOCTRINE_CATALOG } from '@/analysis/doctrine-catalog';
-import { GAMEPLAY_CATALOG } from '@/analysis/gameplay-catalog';
+import { summarizeAnalysis, analysisToCsv, catalogProvenance } from '@/analysis/summary';
 
 interface ExportDialogProps {
   map: WardleyMap;
@@ -41,20 +39,27 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
   }, [map, theme, background]);
 
   const exportAnalysis = React.useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const summary = summarizeAnalysis(map, today);
     const payload = {
       exportedAt: new Date().toISOString(),
       mapId: map.id,
       mapTitle: map.title,
       mapRevision: map.revision,
-      catalogVersions: {
-        climate: CLIMATE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-        doctrine: DOCTRINE_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-        gameplay: GAMEPLAY_CATALOG.map((e) => ({ id: e.id, version: e.version })),
-      },
+      notice:
+        'Assessments are map-specific hypotheses by the map’s authors, not facts. ' +
+        'Gameplay hypotheses marked humanReviewed: false have not been reviewed for risks, harms or legal/ethical issues.',
+      counts: summary.counts,
+      assessments: summary.rows,
       analysis: map.analysis,
-      attribution: 'Catalog content: Wardley Maps — Simon Wardley (CC BY-SA 4.0). Assessments are map-specific human observations.',
+      catalogs: catalogProvenance(),
     };
     downloadText(JSON.stringify(payload, null, 2), `${slug(map.title)}.analysis.json`, 'application/json');
+  }, [map]);
+
+  const exportAnalysisCsv = React.useCallback(() => {
+    const summary = summarizeAnalysis(map, new Date().toISOString().slice(0, 10));
+    downloadText(analysisToCsv(summary), `${slug(map.title)}.analysis.csv`, 'text/csv');
   }, [map]);
 
   const exportPNG = React.useCallback(() => {
@@ -189,10 +194,18 @@ export default function ExportDialog({ map, onClose }: ExportDialogProps) {
           <ExportOption
             icon={<BarChart2 size={20} />}
             title="Analysis JSON"
-            description="Climate, doctrine and gameplay assessments with catalog versions and attribution"
+            description="Assessments, evidence and review status with catalog versions, attribution and licence"
             ext=".analysis.json"
             busy={exporting === 'analysis'}
             onClick={exportAnalysis}
+          />
+          <ExportOption
+            icon={<BarChart2 size={20} />}
+            title="Analysis table (CSV)"
+            description="One row per assessment for spreadsheets — a table, not a substitute for the map"
+            ext=".analysis.csv"
+            busy={exporting === 'csv'}
+            onClick={exportAnalysisCsv}
           />
         </div>
 
