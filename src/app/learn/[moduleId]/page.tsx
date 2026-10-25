@@ -130,7 +130,16 @@ export default function ModulePage({ params }: Props) {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '24px 28px 48px', maxWidth: 800 }}>
+      <div
+        style={{
+          padding: '24px 28px 48px',
+          // Lesson prose stays comfortably readable, while the challenge needs
+          // the full pane so the canvas is not squeezed by the inspector.
+          maxWidth: tab === 'learn' ? 800 : 'none',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
         {tab === 'learn' ? (
           <LearnTab module={mod} onStartChallenge={() => setTab('challenge')} />
         ) : (
@@ -306,4 +315,3 @@ function ExampleCard({ example }: { example: NonNullable<ReturnType<typeof getMo
 // ---------------------------------------------------------------------------
 // Minimal safe Markdown→HTML (headings, bold, tables, paragraphs only)
 // ---------------------------------------------------------------------------
-

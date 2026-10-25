@@ -131,3 +131,23 @@ test('every module opens with its challenge editor', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Check my map' })).toBeVisible();
   }
 });
+
+test('the challenge editor uses the available desktop width', async ({ page }) => {
+  await page.goto('/learn/components-value-chains?tab=challenge');
+
+  const main = page.locator('main');
+  const editor = page.locator('.practice-editor');
+  await expect(editor).toBeVisible();
+
+  const [mainBox, editorBox, canvasBox] = await Promise.all([
+    main.boundingBox(),
+    editor.boundingBox(),
+    editor.locator('.editor-canvas').boundingBox(),
+  ]);
+
+  expect(mainBox).not.toBeNull();
+  expect(editorBox).not.toBeNull();
+  expect(canvasBox).not.toBeNull();
+  expect(editorBox!.width).toBeGreaterThan(mainBox!.width * 0.85);
+  expect(canvasBox!.width).toBeGreaterThan(600);
+});
