@@ -82,7 +82,6 @@ The application is browser-local. Each browser profile keeps its own maps and le
 - Pure domain commands, validation, parsers, scenario rules, and analysis summaries
 - Browser-local persistence with sequential legacy migration and recoverable backups
 - Vitest for domain/integration tests and a Chromium/WebKit/Firefox Playwright + axe-core release matrix
-- GitHub Actions gates dependency security, type checking, unit tests, production build, accessibility, performance, and visual regression on every pull request and push to `main`
 
 The implementation contract is [PLAN.md](PLAN.md). Release evidence and decisions live in `docs/`, including the [accessibility audit](docs/accessibility-audit.md), [browser support statement](docs/browser-support.md), [performance report](docs/performance-report.md), [visual-regression matrix](docs/visual-regression.md), [content/licence review](docs/content-license-review.md), [collaboration ADR](docs/adr/0001-collaboration-readiness.md), and [telemetry ADR](docs/adr/0002-privacy-safe-telemetry.md).
 
