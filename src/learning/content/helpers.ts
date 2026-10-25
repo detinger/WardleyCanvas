@@ -24,10 +24,11 @@ export function solution(
   };
 }
 
-/** Shared metadata for content authored in this repository and awaiting review. */
-export const DRAFT_META: Omit<ContentMeta, 'version'> = {
+/** Shared metadata for repository-authored content after human review. */
+export const REVIEWED_META: Omit<ContentMeta, 'version'> = {
   author: 'Wardley Maps Studio contributors',
-  reviewStatus: 'draft',
+  reviewer: 'Project owner',
+  reviewStatus: 'reviewed',
   lastReviewed: '2026-10-25',
   license: 'CC BY-SA 4.0',
   sources: [

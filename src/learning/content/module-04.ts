@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const STARTER = `title Online bookshop
 
@@ -30,7 +30,7 @@ const module04: LearningModule = {
   tagline: 'Learn to extract strategic insight from a Wardley Map you did not draw.',
   conceptIds: ['reading', 'pattern', 'interpretation'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## A map is a conversation starter

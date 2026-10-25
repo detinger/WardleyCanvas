@@ -9,7 +9,7 @@ import { parseOWM, sanitizeUrl, mergeParsedMap, OWMDiagnostic } from './owm';
 
 /** Hard limits that keep a hostile or accidental file from freezing the tab. */
 export const MAX_IMPORT_CHARS = 2_000_000;
-export const MAX_IMPORT_ELEMENTS = 2_000;
+const MAX_IMPORT_ELEMENTS = 2_000;
 
 export type ImportFormat = 'owm' | 'json';
 

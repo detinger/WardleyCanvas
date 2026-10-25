@@ -155,6 +155,16 @@ test('learning feedback — light smallest viewport', async ({ page }) => {
   await expect(page).toHaveScreenshot('learning-feedback-light-375.png');
 });
 
+test('learning case-study path — light desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installState(page);
+  await page.goto('/learn');
+  const caseStudies = page.getByRole('region', { name: 'Six IT industry case studies' });
+  await expect(caseStudies).toBeVisible();
+  await settle(page, 'light');
+  await expect(caseStudies).toHaveScreenshot('learning-case-studies-light-1440.png');
+});
+
 test('editor errors and dialogs — light desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await installState(page, { maps: [teaMap] });

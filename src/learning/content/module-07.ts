@@ -1,5 +1,5 @@
 import { LearningModule } from '../types';
-import { solution, DRAFT_META } from './helpers';
+import { solution, REVIEWED_META } from './helpers';
 
 const STARTER = `title Mapping tool vendor
 
@@ -25,7 +25,7 @@ const module07: LearningModule = {
   tagline: 'Strategic moves are hypotheses — not instructions or guarantees.',
   conceptIds: ['gameplay', 'hypothesis', 'strategy'],
   published: true,
-  meta: { ...DRAFT_META, version: 1 },
+  meta: { ...REVIEWED_META, version: 1 },
 
   explanation: `
 ## Gameplay: deliberate moves

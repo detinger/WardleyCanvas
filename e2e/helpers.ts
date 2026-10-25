@@ -21,11 +21,11 @@ export async function newMap(page: Page) {
   return page.url();
 }
 
-export const sourceBox = (page: Page) => page.getByRole('textbox', { name: 'OWM source editor' });
+const sourceBox = (page: Page) => page.getByRole('textbox', { name: 'OWM source editor' });
 export const canvas = (page: Page) => page.getByRole('group', { name: 'Wardley map canvas' });
 export const node = (page: Page, name: string) => canvas(page).getByRole('button', { name, exact: true });
 
-export async function typeSource(page: Page, text: string) {
+async function typeSource(page: Page, text: string) {
   await page.getByRole('button', { name: 'Split mode' }).click();
   await sourceBox(page).fill(text);
   await expect(node(page, 'Hot Water')).toBeVisible();

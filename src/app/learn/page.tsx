@@ -1,11 +1,11 @@
 'use client';
 
-// LRN-02: Learning path overview — shows all 8 modules with progress.
+// LRN-02: Learning path overview — fundamentals plus applied IT case studies.
 
 import * as React from 'react';
 import Link from 'next/link';
-import { CheckCircle, Lock, BookOpen, ChevronRight } from 'lucide-react';
-import { ALL_MODULES } from '@/learning/content';
+import { CheckCircle, Lock, ChevronRight, Clock3, ArrowRight, Map } from 'lucide-react';
+import { CASE_STUDIES, FUNDAMENTAL_MODULES } from '@/learning/content';
 import { loadProgress, resetAllProgress } from '@/learning/progress';
 import { clearAllPracticeMaps } from '@/learning/practice';
 import { LearningModule, ModuleProgress } from '@/learning/types';
@@ -17,6 +17,9 @@ export default function LearnPage() {
     setProgressMap(loadProgress().moduleProgress);
   }, []);
 
+  const completedCases = CASE_STUDIES.filter((mod) => progressMap[mod.id]?.completedAt).length;
+  const casesComplete = completedCases === CASE_STUDIES.length;
+
   return (
     <main id="main-content" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 48px' }}>
       {/* Header */}
@@ -25,35 +28,93 @@ export default function LearnPage() {
           Learning path
         </p>
         <h1 style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-0.015em', color: 'var(--text)', margin: '0 0 10px' }}>
-          Wardley Maps — 8 modules
+          Learn Wardley Mapping
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: '64ch' }}>
-          Each module is a short explanation, an annotated example, and a hands-on challenge.
-          You can skip ahead — progress is never a lock on product capability.
+          Learn the foundations in eight focused modules, then apply them in six progressive IT case studies.
+          You can skip ahead—progress is never a lock on product capability.
         </p>
       </div>
 
-      {/* Module list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 720 }}>
-        {ALL_MODULES.map((mod, i) => {
-          const prev = i > 0 ? ALL_MODULES[i - 1] : null;
-          const prevDone = !prev || !!progressMap[prev.id]?.completedAt;
-          const locked = !mod.published;
-          const mp = progressMap[mod.id];
-          const started = !!mp?.startedAt;
-          const done = !!mp?.completedAt;
+      <section aria-labelledby="fundamentals-heading" style={{ maxWidth: 720 }}>
+        <h2 id="fundamentals-heading" style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>
+          Foundations
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
+          Learn the vocabulary and mechanics before applying them to complete situations.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FUNDAMENTAL_MODULES.map((mod) => {
+            const mp = progressMap[mod.id];
+            return (
+              <ModuleCard
+                key={mod.id}
+                module={mod}
+                locked={!mod.published}
+                started={!!mp?.startedAt}
+                done={!!mp?.completedAt}
+              />
+            );
+          })}
+        </div>
+      </section>
 
-          return (
-            <ModuleCard
-              key={mod.id}
-              module={mod}
-              locked={locked}
-              started={started}
-              done={done}
-            />
-          );
-        })}
-      </div>
+      <section aria-labelledby="case-studies-heading" style={{ marginTop: 44, maxWidth: 1080 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 650, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>
+              Applied tutorial
+            </p>
+            <h2 id="case-studies-heading" style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>
+              Six IT industry case studies
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, maxWidth: '68ch', lineHeight: 1.5 }}>
+              Work from guided value chains to an independent security-response capstone. Each case removes a little more scaffolding.
+            </p>
+          </div>
+          <span role="status" style={{ fontSize: 13, fontWeight: 600, color: casesComplete ? 'var(--success)' : 'var(--text-muted)' }}>
+            {completedCases} of {CASE_STUDIES.length} completed
+          </span>
+        </div>
+
+        <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 16 }}>
+          {CASE_STUDIES.map((mod) => {
+            const mp = progressMap[mod.id];
+            return <CaseStudyCard key={mod.id} module={mod} started={!!mp?.startedAt} done={!!mp?.completedAt} />;
+          })}
+        </ol>
+
+        <div
+          style={{
+            marginTop: 16,
+            padding: '16px 18px',
+            border: `1px solid ${casesComplete ? 'var(--success)' : 'var(--border)'}`,
+            borderRadius: 10,
+            background: casesComplete ? 'var(--success-soft)' : 'var(--bg-elevated)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 650, color: 'var(--text)', margin: '0 0 4px' }}>
+              {casesComplete ? 'Ready to map your own situation' : 'Your independent mapping milestone'}
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+              {casesComplete
+                ? 'You completed the six-case tutorial. Start with a real user, a real need, and a deliberately narrow scope.'
+                : 'Complete the capstone without a starter map, then use the same process on a real situation from your work.'}
+            </p>
+          </div>
+          {casesComplete && (
+            <Link href="/maps" className="btn" style={{ textDecoration: 'none' }}>
+              <Map size={14} /> Create your own map <ArrowRight size={13} />
+            </Link>
+          )}
+        </div>
+      </section>
 
       <ProgressControls onReset={() => setProgressMap({})} />
 
@@ -67,6 +128,53 @@ export default function LearnPage() {
         .
       </p>
     </main>
+  );
+}
+
+function CaseStudyCard({ module: mod, started, done }: { module: LearningModule; started: boolean; done: boolean }) {
+  const detail = mod.caseStudy!;
+  return (
+    <li>
+      <Link
+        href={`/learn/${mod.id}`}
+        aria-label={`Case study ${detail.number}: ${mod.title}`}
+        style={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          padding: 18,
+          borderRadius: 10,
+          border: `1px solid ${done ? 'var(--success)' : 'var(--border)'}`,
+          background: done ? 'var(--success-soft)' : 'var(--bg-elevated)',
+          boxShadow: 'var(--shadow-sm)',
+          color: 'var(--text)',
+          textDecoration: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Case study {detail.number}
+          </span>
+          {done ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 650, color: 'var(--success)' }}>
+              <CheckCircle size={13} /> Completed
+            </span>
+          ) : started ? (
+            <span style={{ fontSize: 11, fontWeight: 650, color: 'var(--primary)' }}>In progress</span>
+          ) : null}
+        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 650, margin: 0, color: 'var(--text)' }}>{mod.title}</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0, flex: 1 }}>{mod.tagline}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text-subtle)' }}>
+          <span style={{ padding: '2px 7px', borderRadius: 999, background: detail.guidance === 'Independent' ? 'var(--accent-soft)' : 'var(--primary-soft)', color: 'var(--text)' }}>
+            {detail.guidance}
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock3 size={12} /> {detail.estimatedMinutes} min</span>
+          <ChevronRight size={14} style={{ marginLeft: 'auto' }} />
+        </div>
+      </Link>
+    </li>
   );
 }
 

@@ -10,8 +10,9 @@ import module05 from './module-05';
 import module06 from './module-06';
 import module07 from './module-07';
 import module08 from './module-08';
+import { IT_CASE_STUDIES } from './case-studies';
 
-export const ALL_MODULES: LearningModule[] = [
+export const FUNDAMENTAL_MODULES: LearningModule[] = [
   module01,
   module02,
   module03,
@@ -22,12 +23,13 @@ export const ALL_MODULES: LearningModule[] = [
   module08,
 ];
 
+export const CASE_STUDIES: LearningModule[] = IT_CASE_STUDIES;
+
+export const ALL_MODULES: LearningModule[] = [
+  ...FUNDAMENTAL_MODULES,
+  ...CASE_STUDIES,
+];
+
 export function getModule(id: string): LearningModule | undefined {
   return ALL_MODULES.find((m) => m.id === id);
 }
-
-export function getModuleByIndex(index: number): LearningModule | undefined {
-  return ALL_MODULES.find((m) => m.index === index);
-}
-
-export const PUBLISHED_MODULES = ALL_MODULES.filter((m) => m.published);

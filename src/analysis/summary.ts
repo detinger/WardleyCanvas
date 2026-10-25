@@ -7,9 +7,9 @@ import { getClimateEntry, CLIMATE_CATALOG } from './climate-catalog';
 import { getDoctrineEntry, DOCTRINE_CATALOG, DOCTRINE_PHASES } from './doctrine-catalog';
 import { getGameplayEntry, GAMEPLAY_CATALOG } from './gameplay-catalog';
 
-export type AssessmentKind = 'climate' | 'doctrine' | 'gameplay';
+type AssessmentKind = 'climate' | 'doctrine' | 'gameplay';
 
-export interface AssessmentRow {
+interface AssessmentRow {
   id: string;
   kind: AssessmentKind;
   catalogId: string;

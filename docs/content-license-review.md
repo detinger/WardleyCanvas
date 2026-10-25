@@ -7,7 +7,7 @@
 
 The bundled climate, doctrine, and gameplay catalogs now carry structured source, licence, modification, and review-date metadata on every exported entry. The in-product reference page identifies the source, links the licence, says that the text was adapted and rewritten, and disclaims endorsement.
 
-The learning modules remain marked `draft` until a named Wardley Mapping subject-matter reviewer signs them off. Their source and licence metadata is present and validated in CI. This is a content-governance follow-up, not an unlabelled release claim.
+The project owner confirmed that the learning modules and six fictional IT case studies received human review. They are marked `reviewed` with the review date and reviewer attribution in their validated metadata.
 
 ## Reviewed sources
 
@@ -16,7 +16,7 @@ The learning modules remain marked `draft` until a named Wardley Mapping subject
 | Wardley Maps by Simon Wardley | Concepts, climate, doctrine, and gameplay reference material | Adapted and rewritten; attributed to Simon Wardley; CC BY-SA 4.0; no endorsement implied |
 | Learn Wardley Mapping glossary | Terminology cross-check | Reference only; no glossary copied wholesale |
 | OnlineWardleyMaps DSL reference | Syntax and interoperability behavior | Compatibility reference; no OnlineWardleyMaps implementation code is copied |
-| Repository-authored learning modules | Lessons, examples, challenges, and rubrics | Shared as CC BY-SA 4.0; currently labelled draft with versioned metadata |
+| Repository-authored learning modules and fictional IT case studies | Lessons, examples, challenges, and rubrics | Shared as CC BY-SA 4.0; human-reviewed with versioned metadata |
 
 Primary links:
 
@@ -39,6 +39,10 @@ Direct runtime and development dependencies were checked against their installed
 
 Inter and JetBrains Mono are loaded through Google Fonts and are covered by the SIL Open Font License 1.1. Their upstream projects and the runtime-request caveat are recorded in the notice.
 
-## Required follow-up
+## Review record
 
-A named subject-matter reviewer must change each learning module’s `reviewStatus` from `draft` to `reviewed`, add their name, and update `lastReviewed`. CI intentionally rejects reviewed content without a reviewer.
+- **Status:** Reviewed
+- **Reviewer attribution:** Project owner
+- **Review date:** 2026-10-25
+
+CI rejects reviewed content without reviewer attribution, and the content-integrity suite verifies the review state across all modules and case studies.

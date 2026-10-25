@@ -28,7 +28,7 @@ type EditorMode = 'visual' | 'split' | 'source';
  * Practice mode embeds the editor in a learning challenge: nothing is written
  * to the map store, and the primary action is supplied by the host.
  */
-export interface PracticeOptions {
+interface PracticeOptions {
   onChange: (map: WardleyMap) => void;
   primaryLabel: string;
   onPrimary: () => void;

@@ -16,6 +16,8 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
+      - name: Dependency audit
+        run: npm audit --audit-level=moderate
       - name: Type check
         run: npm run typecheck
       - name: Unit tests (includes learning-content schema validation)

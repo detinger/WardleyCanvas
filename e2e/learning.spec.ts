@@ -24,7 +24,7 @@ async function depend(page: Page, from: string, to: string) {
 
 test('a new learner completes the first-map challenge by keyboard', async ({ page }) => {
   await page.goto('/learn/purpose-users-needs');
-  await expect(page.getByText('Draft — awaiting expert review')).toBeVisible();
+  await expect(page.getByText('Draft — awaiting expert review')).toHaveCount(0);
   await page.getByRole('button', { name: 'Start challenge' }).focus();
   await page.keyboard.press('Enter');
 
@@ -122,6 +122,8 @@ test('every module opens with its challenge editor', async ({ page }) => {
   const ids = [
     'purpose-users-needs', 'components-value-chains', 'visibility-evolution', 'reading-complete-map',
     'climate-inertia', 'doctrine-operating-context', 'gameplay-hypotheses', 'scenario-comparison-decisions',
+    'case-saas-incident-status', 'case-software-delivery-platform', 'case-managed-database-service',
+    'case-identity-modernisation', 'case-ai-code-review', 'case-security-response-capstone',
   ];
   for (const id of ids) {
     await page.goto(`/learn/${id}`);
@@ -130,6 +132,22 @@ test('every module opens with its challenge editor', async ({ page }) => {
     await expect(page.getByRole('region', { name: 'Practice map editor' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Check my map' })).toBeVisible();
   }
+});
+
+test('learning path presents six IT cases that end in an independent capstone', async ({ page }) => {
+  await page.goto('/learn');
+
+  await expect(page.getByRole('heading', { name: 'Six IT industry case studies' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Case study \d:/ })).toHaveCount(6);
+  await expect(page.getByText('0 of 6 completed')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Case study 6: Security incident response capstone' }).click();
+  await expect(page.getByText('Case study 6 · Independent')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Security incident response capstone' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Start challenge' }).click();
+  await expect(page.getByText('Start by adding an anchor')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Practice map editor' })).toBeVisible();
 });
 
 test('the challenge editor uses the available desktop width', async ({ page }) => {

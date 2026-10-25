@@ -484,8 +484,12 @@ function FirstMapOnboarding({ onCreate }: { onCreate: () => void }) {
           onClick={onCreate}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCreate(); }}
-          aria-label="Create a blank map"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onCreate();
+            }
+          }}
           style={{
             padding: '20px',
             borderRadius: 12,

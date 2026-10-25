@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_MODULES } from '../content';
+import { ALL_MODULES, CASE_STUDIES, FUNDAMENTAL_MODULES } from '../content';
 import { validateContent } from '../content-validation';
 import { LearningModule } from '../types';
 
@@ -10,8 +10,8 @@ describe('learning content', () => {
     expect(issues.map((i) => `${i.moduleId} › ${i.path}: ${i.message}`)).toEqual([]);
   });
 
-  it('follows the plan’s learning path order', () => {
-    expect(ALL_MODULES.map((m) => m.title)).toEqual([
+  it('follows the plan’s foundation order', () => {
+    expect(FUNDAMENTAL_MODULES.map((m) => m.title)).toEqual([
       'Purpose, users, and needs',
       'Components and value chains',
       'Visibility and evolution',
@@ -22,6 +22,24 @@ describe('learning content', () => {
       'Scenario comparison and decisions',
     ]);
     expect(ALL_MODULES.every((m) => m.published)).toBe(true);
+    expect(ALL_MODULES.every((m) => m.meta.reviewStatus === 'reviewed')).toBe(true);
+    expect(ALL_MODULES.every((m) => m.meta.reviewer === 'Project owner')).toBe(true);
+  });
+
+  it('adds six progressively less-scaffolded IT case studies', () => {
+    expect(CASE_STUDIES.map((m) => m.title)).toEqual([
+      'SaaS incident status service',
+      'Software delivery platform',
+      'Managed database service',
+      'Enterprise identity modernisation',
+      'AI-assisted code review',
+      'Security incident response capstone',
+    ]);
+    expect(CASE_STUDIES.map((m) => m.caseStudy?.number)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(CASE_STUDIES.map((m) => m.caseStudy?.guidance)).toEqual([
+      'Guided', 'Guided', 'Supported', 'Supported', 'Supported', 'Independent',
+    ]);
+    expect(CASE_STUDIES.at(-1)?.challenge.starterOwm).toBeUndefined();
   });
 });
 

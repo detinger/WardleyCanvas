@@ -480,10 +480,6 @@ export const DOCTRINE_CATALOG: DoctrineCatalogEntry[] = DOCTRINE_CATALOG_BASE.ma
   ...WARDLEY_CATALOG_PROVENANCE,
 }));
 
-export function getDoctrineCatalog(): DoctrineCatalogEntry[] {
-  return DOCTRINE_CATALOG;
-}
-
 export function getDoctrineEntry(id: string): DoctrineCatalogEntry | undefined {
   return DOCTRINE_CATALOG.find((e) => e.id === id);
 }

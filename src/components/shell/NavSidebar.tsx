@@ -25,7 +25,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,7 +164,7 @@ export default function NavSidebar({ expanded, onToggle }: NavSidebarProps) {
             cursor: 'pointer',
             flexShrink: 0,
           }}
-          className="hover:bg-ws-bg-hover"
+          className="nav-sidebar__toggle"
         >
           {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
@@ -272,7 +271,7 @@ function NavLink({
   }
 
   return (
-    <Link href={item.href} style={style} aria-label={item.label} aria-current={active ? 'page' : undefined} title={expanded ? undefined : item.label}>
+    <Link href={item.href} prefetch={false} style={style} aria-label={item.label} aria-current={active ? 'page' : undefined} title={expanded ? undefined : item.label}>
       <span style={{ flexShrink: 0 }}>{item.icon}</span>
       {expanded && (
         <span className="nav-label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -323,7 +322,7 @@ function UtilityButton({
 
   if (href) {
     return (
-      <Link href={href} style={style} aria-label={label} title={expanded ? undefined : label}>
+      <Link href={href} prefetch={false} style={style} aria-label={label} title={expanded ? undefined : label}>
         {content}
       </Link>
     );

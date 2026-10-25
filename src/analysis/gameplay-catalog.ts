@@ -434,10 +434,6 @@ export const GAMEPLAY_CATALOG: GameplayCatalogEntry[] = GAMEPLAY_CATALOG_BASE.ma
   ...WARDLEY_CATALOG_PROVENANCE,
 }));
 
-export function getGameplayCatalog(): GameplayCatalogEntry[] {
-  return GAMEPLAY_CATALOG;
-}
-
 export function getGameplayEntry(id: string): GameplayCatalogEntry | undefined {
   return GAMEPLAY_CATALOG.find((e) => e.id === id);
 }

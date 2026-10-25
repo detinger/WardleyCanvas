@@ -25,6 +25,7 @@ export function validateContent(modules: LearningModule[]): ContentIssue[] {
   const issues: ContentIssue[] = [];
   const seenModuleIds = new Set<string>();
   const seenChallengeIds = new Set<string>();
+  const seenCaseStudyNumbers = new Set<number>();
 
   modules.forEach((mod, i) => {
     const issue = (path: string, message: string) => issues.push({ moduleId: mod.id, path, message });
@@ -33,6 +34,16 @@ export function validateContent(modules: LearningModule[]): ContentIssue[] {
     if (seenModuleIds.has(mod.id)) issue('id', `Duplicate module id "${mod.id}"`);
     seenModuleIds.add(mod.id);
     if (mod.index !== i + 1) issue('index', `Module index ${mod.index} should be ${i + 1} (modules are listed in order)`);
+    if (mod.caseStudy) {
+      if (!Number.isInteger(mod.caseStudy.number) || mod.caseStudy.number < 1) {
+        issue('caseStudy.number', 'Case-study number must be a positive integer');
+      }
+      if (seenCaseStudyNumbers.has(mod.caseStudy.number)) issue('caseStudy.number', `Duplicate case-study number ${mod.caseStudy.number}`);
+      seenCaseStudyNumbers.add(mod.caseStudy.number);
+      if (!Number.isInteger(mod.caseStudy.estimatedMinutes) || mod.caseStudy.estimatedMinutes < 1) {
+        issue('caseStudy.estimatedMinutes', 'Estimated minutes must be a positive integer');
+      }
+    }
 
     // Governance metadata
     const meta = mod.meta;

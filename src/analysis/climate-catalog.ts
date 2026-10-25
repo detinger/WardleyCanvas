@@ -200,10 +200,6 @@ export const CLIMATE_CATALOG: ClimateCatalogEntry[] = CLIMATE_CATALOG_BASE.map((
   ...WARDLEY_CATALOG_PROVENANCE,
 }));
 
-export function getClimateCatalog(): ClimateCatalogEntry[] {
-  return CLIMATE_CATALOG;
-}
-
 export function getClimateEntry(id: string): ClimateCatalogEntry | undefined {
   return CLIMATE_CATALOG.find((e) => e.id === id);
 }

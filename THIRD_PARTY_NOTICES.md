@@ -23,10 +23,7 @@ The application currently requests these fonts from Google Fonts at runtime and 
 
 | Packages | Declared licence |
 | --- | --- |
-| `@dnd-kit/core`, `@hookform/resolvers`, all direct `@radix-ui/react-*` packages, `clsx`, `date-fns`, `embla-carousel-react`, `next`, `patch-package`, `react`, `react-day-picker`, `react-dom`, `react-hook-form`, `recharts`, `tailwind-merge`, `tailwindcss-animate`, `zod` | MIT |
-| `@genkit-ai/google-genai`, `firebase`, `genkit` | Apache-2.0 |
-| `class-variance-authority` | Apache-2.0 |
-| `dotenv` | BSD-2-Clause |
+| `@radix-ui/react-toast`, `next`, `react`, `react-dom` | MIT |
 | `lucide-react` | ISC |
 
 ## Direct development dependencies
@@ -34,7 +31,7 @@ The application currently requests these fonts from Google Fonts at runtime and 
 | Packages | Declared licence |
 | --- | --- |
 | `@axe-core/playwright` | MPL-2.0 |
-| `@playwright/test`, `genkit-cli`, `typescript` | Apache-2.0 |
-| `@types/node`, `@types/react`, `@types/react-dom`, `postcss`, `tailwindcss`, `vitest` | MIT |
+| `@playwright/test`, `typescript` | Apache-2.0 |
+| `@types/node`, `@types/react`, `@types/react-dom`, `vitest` | MIT |
 
 SPDX licence texts are available at <https://spdx.org/licenses/>. Redistribution must retain the copyright and licence notices supplied by each upstream package and font.

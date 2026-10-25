@@ -5,7 +5,7 @@
 
 ## Result
 
-Nine reviewed Chromium golden images pass across the five required viewport widths and both themes. The visual project runs after the functional and performance projects so screenshots are not taken while other browser workers compete for resources.
+Ten reviewed Chromium golden images pass across the five required viewport widths and both themes. The visual project runs after the functional and performance projects so screenshots are not taken while other browser workers compete for resources.
 
 | State | Theme | Viewport |
 | --- | --- | ---: |
@@ -14,6 +14,7 @@ Nine reviewed Chromium golden images pass across the five required viewport widt
 | Empty editor, focused creation control, disabled undo/redo | Light | 900 × 900 |
 | 200-component dense editor, selection, inspector reflow | Dark | 820 × 1000 |
 | First-map challenge failure feedback | Light | 375 × 900 |
+| Six-case IT tutorial track and independent milestone | Light | 1440 × 900 |
 | Import error dialog and disabled confirmation | Light | 1440 × 900 |
 | Split editor with invalid source diagnostics | Light | 1440 × 900 |
 | Analysis summary, attention callout, and tables | Light | 1440 × 900 |
