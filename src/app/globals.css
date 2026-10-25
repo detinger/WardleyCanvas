@@ -615,6 +615,11 @@ next-dev-indicator {
   }
 }
 
+/* Dark mode: active nav link uses --primary-strong (lighter) for WCAG AA contrast on --primary-soft */
+[data-theme="dark"] .nav-sidebar a[aria-current="page"] {
+  color: var(--primary-strong) !important;
+}
+
 /* Learning challenge: the editor needs a bounded box to lay out canvas + inspector */
 .practice-editor {
   display: flex;

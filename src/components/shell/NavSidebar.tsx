@@ -304,7 +304,7 @@ function UtilityButton({
     margin: '1px 4px',
     borderRadius: 6,
     fontSize: 13,
-    color: 'var(--text-subtle)',
+    color: 'var(--text-muted)',
     background: 'none',
     textDecoration: 'none',
     cursor: 'pointer',
